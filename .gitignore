@@ -1,44 +1,17 @@
 # Dependencies
 node_modules/
-.pnp
-.pnp.js
+.pnpm-store/
 
-# Testing
-coverage/
-
-# Next.js
+# Build outputs
 .next/
+dist/
 out/
 build/
 
-# Misc
-.DS_Store
-*.pem
-
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# Local env files
+# Environment
 .env
-.env*.local
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Vercel
-.vercel
-
-# TypeScript
-*.tsbuildinfo
-next-env.d.ts
-
-# Prisma
-prisma/*.db
-prisma/*.db-journal
+.env.*.local
 
 # IDE
 .vscode/
@@ -47,4 +20,27 @@ prisma/*.db-journal
 *.swo
 
 # OS
+.DS_Store
 Thumbs.db
+
+# Turbo
+.turbo/
+
+# Prisma
+packages/db/prisma/*.db
+packages/db/prisma/migrations/
+
+# Docker volumes
+postgres-data/
+redis-data/
+
+# Debug
+npm-debug.log*
+pnpm-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+*.tsbuildinfo
