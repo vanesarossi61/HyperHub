@@ -47,8 +47,8 @@ hyperhub/
 
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/your-org/hyperhub.git
-cd hyperhub
+git clone https://github.com/vanesarossi61/HyperHub.git
+cd HyperHub
 
 # 2. Copiar variables de entorno
 cp .env.example .env
@@ -90,4 +90,4 @@ La app estara disponible en [http://localhost:3000](http://localhost:3000)
 
 ## Licencia
 
-Privado - Todos los derechos reservados.
+MIT License - Ver [LICENSE](LICENSE) para mas detalles.
