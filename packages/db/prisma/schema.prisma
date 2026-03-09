@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BatteryLevel {
+  GREEN
+  YELLOW
+  RED
+  LURKER
+}
+
+enum ToneTag {
+  ENTHUSIASM
+  RANT
+  DEBATE
+  INFO_DUMP
+  QUESTION
+  HELP
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  username  String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile            Profile?
+  sensoryPreferences SensoryPreferences?
+  socialBattery      SocialBattery?
+
+  @@index([clerkId])
+  @@index([email])
+}
+
+model Profile {
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName String?
+  bio         String?
+  avatarUrl   String?
+  pronouns    String?
+
+  // Neurodivergent-specific
+  diagnosisOptional  String?  // Totally optional, never required
+  comfortTopics      String[] // Topics they are comfortable discussing
+  triggerWarnings    String[] // Content they want warned about
+  communicationStyle String?  // How they prefer to communicate
+
+  hyperfocusHistory String[] // Past and current interests
+  currentHyperfoci  String[] // Max 3 active
+
+  onboardingCompleted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SensoryPreferences {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Visual
+  colorPalette       String  @default("calm-default") // calm-default, high-contrast, muted, dark-focus
+  animationLevel     String  @default("minimal")      // none, minimal, moderate, full
+  informationDensity String  @default("comfortable")   // compact, comfortable, spacious
+  transitionSpeed    String  @default("normal")        // instant, fast, normal, slow
+  fontSize           String  @default("medium")        // small, medium, large, extra-large
+
+  // Reading
+  bionicReadingEnabled Boolean @default(false)
+  dyslexicFontEnabled  Boolean @default(false)
+  lineSpacing          String  @default("normal") // tight, normal, relaxed, double
+
+  // Notifications
+  notificationIntensity String  @default("gentle") // silent, gentle, moderate, full
+  soundEnabled          Boolean @default(false)
+  hapticEnabled         Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SocialBattery {
+  id     String       @id @default(cuid())
+  userId String       @unique
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level  BatteryLevel @default(GREEN)
+
+  // Auto-management
+  autoDecayEnabled  Boolean @default(true)
+  decayRateMinutes  Int     @default(120) // How fast battery drains during activity
+  rechargeReminders Boolean @default(true)
+
+  // Schedule
+  autoLurkerStart String? // Time to auto-switch to LURKER (e.g., "22:00")
+  autoLurkerEnd   String? // Time to auto-switch back (e.g., "08:00")
+
+  lastLevelChange DateTime @default(now())
+  lastActivity    DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
