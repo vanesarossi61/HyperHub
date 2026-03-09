@@ -1,0 +1,32 @@
+{
+  "name": "@hyperhub/monorepo",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "type-check": "turbo type-check",
+    "db:push": "turbo db:push --filter=@hyperhub/db",
+    "db:seed": "turbo db:seed --filter=@hyperhub/db",
+    "db:studio": "pnpm --filter @hyperhub/db exec prisma studio",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "clean": "turbo clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.0",
+    "prettier": "^3.4.0",
+    "eslint": "^9.18.0",
+    "typescript": "^5.7.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "tooling/*"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
