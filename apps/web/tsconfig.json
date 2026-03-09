@@ -1,0 +1,27 @@
+{
+  "extends": "../../tooling/typescript/tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@hyperhub/db": ["../../packages/db/src"],
+      "@hyperhub/shared": ["../../packages/shared/src"],
+      "@hyperhub/ui": ["../../packages/ui/src"]
+    },
+    "plugins": [
+      { "name": "next" }
+    ],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowJs": true,
+    "jsx": "preserve",
+    "noEmit": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules", ".next"]
+}
