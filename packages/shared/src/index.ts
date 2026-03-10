@@ -113,11 +113,13 @@ export type {
 
 // Constants
 export {
+  // Phase 1-2: Core
   BATTERY_LEVELS,
   TONE_TAGS,
   NEURODIV_TYPES,
   SENSORY_DEFAULTS,
   SENSORY_PRESETS,
+  NEURODIV_DISPLAY,
   COLOR_PALETTES,
   ANIMATION_LEVELS,
   DENSITY_LEVELS,
@@ -126,11 +128,27 @@ export {
   PRONOUNS_OPTIONS,
   APP_CONFIG,
   BATTERY_MIDDLEWARE_CONFIG,
-  // Phase 3
+
+  // Phase 3: Feed & Content
   REACTION_TYPES,
   FEED_SORT_OPTIONS,
   POST_LIMITS,
   FEED_CONFIG,
   READING_CONFIG,
   ANTI_RABBIT_HOLE_CONFIG,
+
+  // Phase 4: Messaging & Chat
+  CONVERSATION_TYPES,
+  MESSAGE_LIMITS,
+  MESSAGE_STATUS_CONFIG,
+  BATTERY_DELIVERY_CONFIG,
+  MESSAGE_QUEUE_CONFIG,
+  SAFE_EXIT_REASONS,
+  SAFE_EXIT_CONFIG,
+  TYPING_CONFIG,
+  SOCKET_CONFIG,
+  NOTIFICATION_CONFIG,
 } from './constants'
+
+// Re-export utility types from constants
+export type { BatteryLevelKey, DeliveryMode } from './constants'
