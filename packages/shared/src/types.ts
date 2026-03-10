@@ -34,6 +34,10 @@ export type InfoDensityType = 'COMPACT' | 'COMFORTABLE' | 'SPACIOUS'
 export type ContrastModeType = 'DEFAULT' | 'HIGH' | 'MUTED' | 'DARK_FOCUS'
 export type OnboardingStepType = 'BASICS' | 'HYPERFOCI' | 'SENSORY' | 'BATTERY_TUTORIAL' | 'COMPLETED'
 
+// Phase 3 Enums
+export type ReactionTypeValue = 'ME_TOO' | 'BRAIN_EXPLODE' | 'HYPERFOCUS_ACTIVATED' | 'GENTLE_HUG' | 'INFO_GOLD'
+export type VisibilityType = 'PUBLIC' | 'FOLLOWERS' | 'HYPERFOCUS_GROUP' | 'PRIVATE'
+
 // ============================================================
 // User & Profile Types
 // ============================================================
@@ -123,7 +127,7 @@ export interface OnboardingBasicsData {
 }
 
 export interface OnboardingHyperfociData {
-  currentHyperfoci: string[] // max 3
+  currentHyperfoci: string[]
   hyperfocusHistory: string[]
 }
 
@@ -137,6 +141,140 @@ export interface OnboardingBatteryData {
   decayRateMinutes: number
   autoLurkerStart: string | null
   autoLurkerEnd: string | null
+}
+
+// ============================================================
+// Post Types (New - Phase 3)
+// ============================================================
+
+export interface PostPublic {
+  id: string
+  author: PostAuthor
+  content: string
+  toneTag: ToneTagType
+  visibility: VisibilityType
+  isAnonymous: boolean
+  mediaUrls: string[]
+  audioUrl: string | null
+  tldrText: string | null
+  readingTimeSeconds: number
+  wordCount: number
+  viewCount: number
+  reactionCount: number
+  bookmarkCount: number
+  tags: TagPublic[]
+  reactions: ReactionPublic[]
+  userReactions: ReactionTypeValue[]
+  isBookmarked: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PostAuthor {
+  id: string
+  username: string | null
+  displayName: string | null
+  avatarUrl: string | null
+  batteryLevel: BatteryLevelType | null
+  pronouns: string | null
+}
+
+export interface TagPublic {
+  id: string
+  name: string
+  category: string | null
+  usageCount: number
+}
+
+export interface ReactionPublic {
+  type: ReactionTypeValue
+  count: number
+}
+
+export interface BookmarkFolderPublic {
+  id: string
+  name: string
+  emoji: string | null
+  bookmarkCount: number
+}
+
+// ============================================================
+// Feed Types (New - Phase 3)
+// ============================================================
+
+export interface FeedFilters {
+  toneTag?: ToneTagType | null
+  tag?: string | null
+  authorBattery?: BatteryLevelType | null
+  sortBy?: 'recent' | 'dopamine' | 'serendipity'
+  visibility?: VisibilityType
+}
+
+export interface FeedPage {
+  posts: PostPublic[]
+  nextCursor: string | null
+  hasMore: boolean
+  totalEstimate: number
+}
+
+export interface DopamineCurationFactors {
+  hyperfocusMatch: number
+  freshness: number
+  tonePreference: number
+  sameTopicPenalty: number
+  sameAuthorPenalty: number
+  serendipity: number
+}
+
+// ============================================================
+// Anti-Rabbit Hole Types (New - Phase 3)
+// ============================================================
+
+export interface AntiRabbitHoleConfig {
+  enabled: boolean
+  sectionTimerMinutes: number
+  gentleNudgeAfterPosts: number
+  breakSuggestionMinutes: number
+  neverGuilty: boolean
+}
+
+export interface ReadingConfig {
+  bionicReadingEnabled: boolean
+  estimatedWPM: number
+  tldrPreference: 'always' | 'long_posts' | 'never'
+  longPostThreshold: number
+}
+
+// ============================================================
+// Post CRUD Types (New - Phase 3)
+// ============================================================
+
+export interface CreatePostRequest {
+  content: string
+  toneTag: ToneTagType
+  visibility?: VisibilityType
+  isAnonymous?: boolean
+  mediaUrls?: string[]
+  audioUrl?: string
+  tags?: string[]
+}
+
+export interface UpdatePostRequest {
+  content?: string
+  toneTag?: ToneTagType
+  visibility?: VisibilityType
+  isAnonymous?: boolean
+  mediaUrls?: string[]
+  audioUrl?: string
+  tags?: string[]
+}
+
+export interface ToggleReactionRequest {
+  type: ReactionTypeValue
+}
+
+export interface ToggleBookmarkRequest {
+  folderId?: string | null
 }
 
 // ============================================================
