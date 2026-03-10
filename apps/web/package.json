@@ -19,6 +19,8 @@
     "clsx": "^2.1.1",
     "tailwind-merge": "^2.6.0",
     "next-themes": "^0.4.4",
+    "ioredis": "^5.4.0",
+    "svix": "^1.40.0",
     "@hyperhub/db": "workspace:*",
     "@hyperhub/shared": "workspace:*",
     "@hyperhub/ui": "workspace:*"
