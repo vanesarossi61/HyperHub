@@ -7,6 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================================
+// Enums
+// ============================================================
+
 enum BatteryLevel {
   GREEN
   YELLOW
@@ -23,6 +27,56 @@ enum ToneTag {
   HELP
 }
 
+enum NeurodivType {
+  ADHD_INATTENTIVE
+  ADHD_HYPERACTIVE
+  ADHD_COMBINED
+  AUTISM
+  DYSLEXIA
+  DYSCALCULIA
+  DYSPRAXIA
+  TOURETTE
+  OCD
+  BIPOLAR
+  ANXIETY
+  DEPRESSION
+  SENSORY_PROCESSING
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum AnimationTolerance {
+  NONE
+  MINIMAL
+  MODERATE
+  FULL
+}
+
+enum InfoDensity {
+  COMPACT
+  COMFORTABLE
+  SPACIOUS
+}
+
+enum ContrastMode {
+  DEFAULT
+  HIGH
+  MUTED
+  DARK_FOCUS
+}
+
+enum OnboardingStep {
+  BASICS
+  HYPERFOCI
+  SENSORY
+  BATTERY_TUTORIAL
+  COMPLETED
+}
+
+// ============================================================
+// User Model
+// ============================================================
+
 model User {
   id        String   @id @default(cuid())
   clerkId   String   @unique
@@ -34,10 +88,15 @@ model User {
   profile            Profile?
   sensoryPreferences SensoryPreferences?
   socialBattery      SocialBattery?
+  batteryHistory     BatteryHistory[]
 
   @@index([clerkId])
   @@index([email])
 }
+
+// ============================================================
+// Profile Model (Expanded for Phase 2)
+// ============================================================
 
 model Profile {
   id          String  @id @default(cuid())
@@ -46,22 +105,37 @@ model Profile {
   displayName String?
   bio         String?
   avatarUrl   String?
+
+  // Identity
   pronouns    String?
+  ageRange    String?  // "18-24", "25-34", "35-44", "45-54", "55+"
+  timezone    String?  // IANA timezone e.g. "America/Buenos_Aires"
+  languages   String[] // ["es", "en"]
 
-  // Neurodivergent-specific
-  diagnosisOptional  String?  // Totally optional, never required
-  comfortTopics      String[] // Topics they are comfortable discussing
-  triggerWarnings    String[] // Content they want warned about
-  communicationStyle String?  // How they prefer to communicate
+  // Neurodivergent-specific (Phase 2 expanded)
+  neurodivTypes      NeurodivType[] // Multi-select, no judgement
+  selfDiagnosed      Boolean        @default(false)
+  diagnosisOptional  String?        // Free text, totally optional
+  comfortTopics      String[]       // Topics they are comfortable discussing
+  triggerWarnings    String[]       // Content they want warned about
+  communicationStyle String?        // How they prefer to communicate
+  currentMood        String?        // Current mood emoji/text
 
-  hyperfocusHistory String[] // Past and current interests
+  // Hyperfoci
+  hyperfocusHistory String[] // Past interests
   currentHyperfoci  String[] // Max 3 active
 
-  onboardingCompleted Boolean @default(false)
+  // Onboarding
+  onboardingStep      OnboardingStep @default(BASICS)
+  onboardingCompleted Boolean        @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ============================================================
+// Sensory Preferences (Expanded for Phase 2)
+// ============================================================
 
 model SensoryPreferences {
   id     String @id @default(cuid())
@@ -69,11 +143,12 @@ model SensoryPreferences {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Visual
-  colorPalette       String  @default("calm-default") // calm-default, high-contrast, muted, dark-focus
-  animationLevel     String  @default("minimal")      // none, minimal, moderate, full
-  informationDensity String  @default("comfortable")   // compact, comfortable, spacious
-  transitionSpeed    String  @default("normal")        // instant, fast, normal, slow
-  fontSize           String  @default("medium")        // small, medium, large, extra-large
+  colorPalette        ContrastMode       @default(DEFAULT)
+  animationTolerance  AnimationTolerance @default(MINIMAL)
+  informationDensity  InfoDensity        @default(COMFORTABLE)
+  transitionSpeed     String             @default("normal")  // instant, fast, normal, slow
+  fontScale           Float              @default(1.0)        // 0.8 to 1.5
+  reducedMotion       Boolean            @default(true)
 
   // Reading
   bionicReadingEnabled Boolean @default(false)
@@ -85,15 +160,25 @@ model SensoryPreferences {
   soundEnabled          Boolean @default(false)
   hapticEnabled         Boolean @default(true)
 
+  // Preset name (for quick switching)
+  activePreset String? // "calm", "focus", "high-energy", "minimal", or null for custom
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ============================================================
+// Social Battery (Expanded for Phase 2)
+// ============================================================
 
 model SocialBattery {
   id     String       @id @default(cuid())
   userId String       @unique
   user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   level  BatteryLevel @default(GREEN)
+
+  // Manual override
+  manualOverride    Boolean @default(false) // User manually set level, skip auto-decay
 
   // Auto-management
   autoDecayEnabled  Boolean @default(true)
@@ -109,4 +194,20 @@ model SocialBattery {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// Battery History (New - Phase 2)
+// ============================================================
+
+model BatteryHistory {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromLevel BatteryLevel
+  toLevel   BatteryLevel
+  reason    String       @default("manual") // manual, auto_decay, schedule, api
+  createdAt DateTime     @default(now())
+
+  @@index([userId, createdAt])
 }
