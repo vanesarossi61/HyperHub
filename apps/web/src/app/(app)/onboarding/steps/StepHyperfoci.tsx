@@ -14,7 +14,7 @@ const SUGGESTED_HYPERFOCI = [
   "Ciencia", "Cocina", "Fotografia", "Plantas", "Astronomia",
   "Anime/Manga", "Historia", "Psicologia", "Idiomas", "Crochet",
   "Minecraft", "Lego", "True Crime", "Mitologia", "Filosofia",
-  "Robots", "Acuapon\u00eda", "Origami", "Matematicas", "Moda",
+  "Robots", "Acuaponía", "Origami", "Matematicas", "Moda",
 ]
 
 export default function StepHyperfoci({ onNext, onBack, onSkip }: StepHyperfociProps) {
