@@ -1,88 +1,147 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { prisma } from '@hyperhub/db'
-import type { ToggleBookmarkRequest, ApiResponse } from '@hyperhub/shared'
+import { prisma } from '@/lib/prisma'
+import type { ToggleBookmarkRequest } from '@hyperhub/shared'
 
-type RouteContext = { params: Promise<{ id: string }> }
+type RouteParams = { params: { id: string } }
 
-// POST /api/posts/[id]/bookmark - Toggle bookmark
-export async function POST(request: NextRequest, context: RouteContext) {
+// ============================================================
+// POST /api/posts/[id]/bookmark -- Toggle bookmark
+// ============================================================
+
+export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json<ApiResponse<null>>(
-        { success: false, error: 'No autorizado' },
+    const { id: postId } = params
+    const { userId: clerkId } = await auth()
+
+    if (!clerkId) {
+      return NextResponse.json(
+        { success: false, error: 'No autenticado' },
         { status: 401 }
       )
     }
 
-    const user = await prisma.user.findUnique({ where: { clerkId: userId } })
+    const user = await prisma.user.findUnique({
+      where: { clerkId },
+      select: { id: true },
+    })
+
     if (!user) {
-      return NextResponse.json<ApiResponse<null>>(
+      return NextResponse.json(
         { success: false, error: 'Usuario no encontrado' },
         { status: 404 }
       )
     }
 
-    const { id: postId } = await context.params
-    const body: ToggleBookmarkRequest = await request.json().catch(() => ({}))
+    // Verify post exists
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      select: { id: true },
+    })
 
-    const post = await prisma.post.findUnique({ where: { id: postId } })
     if (!post) {
-      return NextResponse.json<ApiResponse<null>>(
+      return NextResponse.json(
         { success: false, error: 'Post no encontrado' },
         { status: 404 }
       )
     }
 
-    const existing = await prisma.bookmark.findUnique({
-      where: { postId_userId: { postId, userId: user.id } },
+    const body: ToggleBookmarkRequest = await request.json().catch(() => ({}))
+
+    // Check if bookmark already exists
+    const existingBookmark = await prisma.bookmark.findUnique({
+      where: {
+        userId_postId: {
+          userId: user.id,
+          postId,
+        },
+      },
     })
 
-    if (existing) {
-      await prisma.$transaction([
-        prisma.bookmark.delete({ where: { id: existing.id } }),
-        prisma.post.update({
-          where: { id: postId },
-          data: { bookmarkCount: { decrement: 1 } },
-        }),
-      ])
-      return NextResponse.json<ApiResponse<{ action: string }>>({
+    if (existingBookmark) {
+      // Remove bookmark (toggle off)
+      await prisma.bookmark.delete({
+        where: { id: existingBookmark.id },
+      })
+
+      return NextResponse.json({
         success: true,
-        data: { action: 'removed' },
+        data: { action: 'removed', postId },
+        message: 'Bookmark removido',
       })
     } else {
-      // Validate folder if provided
-      if (body.folderId) {
-        const folder = await prisma.bookmarkFolder.findFirst({
-          where: { id: body.folderId, userId: user.id },
-        })
-        if (!folder) {
-          return NextResponse.json<ApiResponse<null>>(
-            { success: false, error: 'Carpeta no encontrada' },
-            { status: 404 }
-          )
-        }
-      }
+      // Add bookmark (toggle on)
+      const bookmark = await prisma.bookmark.create({
+        data: {
+          userId: user.id,
+          postId,
+          folder: body.folder || null,
+        },
+      })
 
-      await prisma.$transaction([
-        prisma.bookmark.create({
-          data: { postId, userId: user.id, folderId: body.folderId || null },
-        }),
-        prisma.post.update({
-          where: { id: postId },
-          data: { bookmarkCount: { increment: 1 } },
-        }),
-      ])
-      return NextResponse.json<ApiResponse<{ action: string }>>(
-        { success: true, data: { action: 'added' } },
-        { status: 201 }
-      )
+      return NextResponse.json({
+        success: true,
+        data: { action: 'added', postId, bookmarkId: bookmark.id },
+        message: 'Guardado en bookmarks!',
+      })
     }
   } catch (error) {
-    console.error('Bookmark error:', error)
-    return NextResponse.json<ApiResponse<null>>(
-      { success: false, error: 'Error al procesar el bookmark' },
+    console.error('POST /api/posts/[id]/bookmark error:', error)
+    return NextResponse.json(
+      { success: false, error: 'Error al procesar bookmark' },
+      { status: 500 }
+    )
+  }
+}
+
+// ============================================================
+// GET /api/posts/[id]/bookmark -- Check bookmark status
+// ============================================================
+
+export async function GET(request: NextRequest, { params }: RouteParams) {
+  try {
+    const { id: postId } = params
+    const { userId: clerkId } = await auth()
+
+    if (!clerkId) {
+      return NextResponse.json({
+        success: true,
+        data: { isBookmarked: false },
+      })
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { clerkId },
+      select: { id: true },
+    })
+
+    if (!user) {
+      return NextResponse.json({
+        success: true,
+        data: { isBookmarked: false },
+      })
+    }
+
+    const bookmark = await prisma.bookmark.findUnique({
+      where: {
+        userId_postId: {
+          userId: user.id,
+          postId,
+        },
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        isBookmarked: !!bookmark,
+        folder: bookmark?.folder || null,
+      },
+    })
+  } catch (error) {
+    console.error('GET /api/posts/[id]/bookmark error:', error)
+    return NextResponse.json(
+      { success: false, error: 'Error al verificar bookmark' },
       { status: 500 }
     )
   }
