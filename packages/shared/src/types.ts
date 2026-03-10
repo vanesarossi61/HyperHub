@@ -34,9 +34,17 @@ export type InfoDensityType = 'COMPACT' | 'COMFORTABLE' | 'SPACIOUS'
 export type ContrastModeType = 'DEFAULT' | 'HIGH' | 'MUTED' | 'DARK_FOCUS'
 export type OnboardingStepType = 'BASICS' | 'HYPERFOCI' | 'SENSORY' | 'BATTERY_TUTORIAL' | 'COMPLETED'
 
-// Phase 3 Enums
-export type ReactionTypeValue = 'ME_TOO' | 'BRAIN_EXPLODE' | 'HYPERFOCUS_ACTIVATED' | 'GENTLE_HUG' | 'INFO_GOLD'
-export type VisibilityType = 'PUBLIC' | 'FOLLOWERS' | 'HYPERFOCUS_GROUP' | 'PRIVATE'
+// Phase 3 enums
+export type ReactionTypeValue =
+  | 'SAME_HERE'
+  | 'BRAIN_EXPLODE'
+  | 'HYPERFOCUS'
+  | 'SPOON_GIFT'
+  | 'INFODUMP_THANKS'
+  | 'HUG'
+  | 'SENSORY_OVERLOAD'
+
+export type VisibilityType = 'PUBLIC' | 'FRIENDS_ONLY' | 'PRIVATE'
 
 // ============================================================
 // User & Profile Types
@@ -127,7 +135,7 @@ export interface OnboardingBasicsData {
 }
 
 export interface OnboardingHyperfociData {
-  currentHyperfoci: string[]
+  currentHyperfoci: string[] // max 3
   hyperfocusHistory: string[]
 }
 
@@ -144,129 +152,82 @@ export interface OnboardingBatteryData {
 }
 
 // ============================================================
-// Post Types (New - Phase 3)
+// Post Types (Phase 3)
 // ============================================================
 
 export interface PostPublic {
   id: string
-  author: PostAuthor
+  author: UserPublic
+  title: string | null
   content: string
   toneTag: ToneTagType
-  visibility: VisibilityType
-  isAnonymous: boolean
-  mediaUrls: string[]
-  audioUrl: string | null
-  tldrText: string | null
-  readingTimeSeconds: number
+  hyperfoci: string[]
   wordCount: number
-  viewCount: number
-  reactionCount: number
-  bookmarkCount: number
-  tags: TagPublic[]
-  reactions: ReactionPublic[]
-  userReactions: ReactionTypeValue[]
+  isInfoDump: boolean
+  tldrSummary: string | null
+  visibility: VisibilityType
+  published: boolean
+  pinned: boolean
+  reactions: ReactionCount[]
+  userReactions: ReactionTypeValue[] // Reactions the current user has given
+  commentCount: number
   isBookmarked: boolean
   createdAt: string
   updatedAt: string
 }
 
-export interface PostAuthor {
-  id: string
-  username: string | null
-  displayName: string | null
-  avatarUrl: string | null
-  batteryLevel: BatteryLevelType | null
-  pronouns: string | null
+export interface PostDetail extends PostPublic {
+  comments: CommentPublic[]
 }
 
-export interface TagPublic {
-  id: string
-  name: string
-  category: string | null
-  usageCount: number
-}
-
-export interface ReactionPublic {
+export interface ReactionCount {
   type: ReactionTypeValue
   count: number
 }
 
-export interface BookmarkFolderPublic {
+export interface CommentPublic {
   id: string
-  name: string
-  emoji: string | null
-  bookmarkCount: number
+  author: UserPublic
+  content: string
+  toneTag: ToneTagType | null
+  parentId: string | null
+  replies: CommentPublic[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BookmarkPublic {
+  id: string
+  post: PostPublic
+  folder: string | null
+  createdAt: string
 }
 
 // ============================================================
-// Feed Types (New - Phase 3)
-// ============================================================
-
-export interface FeedFilters {
-  toneTag?: ToneTagType | null
-  tag?: string | null
-  authorBattery?: BatteryLevelType | null
-  sortBy?: 'recent' | 'dopamine' | 'serendipity'
-  visibility?: VisibilityType
-}
-
-export interface FeedPage {
-  posts: PostPublic[]
-  nextCursor: string | null
-  hasMore: boolean
-  totalEstimate: number
-}
-
-export interface DopamineCurationFactors {
-  hyperfocusMatch: number
-  freshness: number
-  tonePreference: number
-  sameTopicPenalty: number
-  sameAuthorPenalty: number
-  serendipity: number
-}
-
-// ============================================================
-// Anti-Rabbit Hole Types (New - Phase 3)
-// ============================================================
-
-export interface AntiRabbitHoleConfig {
-  enabled: boolean
-  sectionTimerMinutes: number
-  gentleNudgeAfterPosts: number
-  breakSuggestionMinutes: number
-  neverGuilty: boolean
-}
-
-export interface ReadingConfig {
-  bionicReadingEnabled: boolean
-  estimatedWPM: number
-  tldrPreference: 'always' | 'long_posts' | 'never'
-  longPostThreshold: number
-}
-
-// ============================================================
-// Post CRUD Types (New - Phase 3)
+// Post Request Types (Phase 3)
 // ============================================================
 
 export interface CreatePostRequest {
+  title?: string
   content: string
   toneTag: ToneTagType
+  hyperfoci?: string[]
   visibility?: VisibilityType
-  isAnonymous?: boolean
-  mediaUrls?: string[]
-  audioUrl?: string
-  tags?: string[]
 }
 
 export interface UpdatePostRequest {
+  title?: string
   content?: string
   toneTag?: ToneTagType
+  hyperfoci?: string[]
   visibility?: VisibilityType
-  isAnonymous?: boolean
-  mediaUrls?: string[]
-  audioUrl?: string
-  tags?: string[]
+  pinned?: boolean
+}
+
+export interface CreateCommentRequest {
+  content: string
+  toneTag?: ToneTagType
+  parentId?: string
 }
 
 export interface ToggleReactionRequest {
@@ -274,7 +235,44 @@ export interface ToggleReactionRequest {
 }
 
 export interface ToggleBookmarkRequest {
-  folderId?: string | null
+  folder?: string
+}
+
+// ============================================================
+// Feed Types (Phase 3)
+// ============================================================
+
+export interface FeedFilters {
+  toneTag?: ToneTagType
+  hyperfocus?: string
+  authorId?: string
+  visibility?: VisibilityType
+  isInfoDump?: boolean
+  search?: string
+}
+
+export type FeedSortOption = 'recent' | 'trending' | 'hyperfocus_match' | 'spoon_friendly'
+
+export interface FeedQuery {
+  filters?: FeedFilters
+  sort?: FeedSortOption
+  cursor?: string
+  limit?: number
+}
+
+export interface FeedResponse {
+  posts: PostPublic[]
+  nextCursor: string | null
+  hasMore: boolean
+  totalEstimate?: number
+}
+
+export interface TldrResponse {
+  postId: string
+  summary: string
+  keyPoints: string[]
+  readingTimeSeconds: number
+  generatedAt: string
 }
 
 // ============================================================
