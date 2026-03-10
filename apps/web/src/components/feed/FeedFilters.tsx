@@ -1,151 +1,249 @@
 'use client'
 
 import { useState } from 'react'
-import { TONE_TAGS } from '@hyperhub/shared'
-import type { FeedFilters as FeedFiltersType, ToneTagType } from '@hyperhub/shared'
-import { ToneTagBadge } from './ToneTagBadge'
+import { TONE_TAGS, FEED_SORT_OPTIONS } from '@hyperhub/shared'
+import type { FeedFilters as FeedFiltersType, FeedSortOption, ToneTagType } from '@hyperhub/shared'
+
+// ============================================================
+// FeedFilters -- Sidebar filter panel for the feed
+// ============================================================
 
 interface FeedFiltersProps {
   filters: FeedFiltersType
+  sort: FeedSortOption
   onFiltersChange: (filters: FeedFiltersType) => void
-  popularTags?: string[]
+  onSortChange: (sort: FeedSortOption) => void
+  userHyperfoci?: string[]
+  isCollapsed?: boolean
 }
 
-export function FeedFilters({ filters, onFiltersChange, popularTags = [] }: FeedFiltersProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
+export function FeedFilters({
+  filters,
+  sort,
+  onFiltersChange,
+  onSortChange,
+  userHyperfoci = [],
+  isCollapsed: initialCollapsed = false,
+}: FeedFiltersProps) {
+  const [isCollapsed, setIsCollapsed] = useState(initialCollapsed)
+  const [searchInput, setSearchInput] = useState(filters.search || '')
 
-  const sortOptions: { key: FeedFiltersType['sortBy']; label: string; emoji: string }[] = [
-    { key: 'dopamine', label: 'Curacion Dopamina', emoji: '\u{1F9E0}' },
-    { key: 'recent', label: 'Mas Recientes', emoji: '\u{1F551}' },
-    { key: 'serendipity', label: 'Serendipia', emoji: '\u{1F3B2}' },
-  ]
+  const allToneTags = Object.values(TONE_TAGS)
+  const hasActiveFilters = !!(filters.toneTag || filters.hyperfocus || filters.search || filters.isInfoDump)
 
-  const handleSortChange = (sortBy: FeedFiltersType['sortBy']) => {
-    onFiltersChange({ ...filters, sortBy })
+  const handleSearchSubmit = () => {
+    onFiltersChange({ ...filters, search: searchInput.trim() || undefined })
   }
 
-  const handleToneFilter = (toneTag: ToneTagType | null) => {
-    onFiltersChange({
-      ...filters,
-      toneTag: filters.toneTag === toneTag ? null : toneTag,
-    })
+  const handleClearAll = () => {
+    onFiltersChange({})
+    setSearchInput('')
   }
-
-  const handleTagFilter = (tag: string | null) => {
-    onFiltersChange({
-      ...filters,
-      tag: filters.tag === tag ? null : tag,
-    })
-  }
-
-  const hasActiveFilters = filters.toneTag || filters.tag
 
   return (
-    <div className="space-y-3">
-      {/* Sort buttons */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider">
-          Ordenar:
-        </span>
-        <div className="flex gap-1">
-          {sortOptions.map((opt) => (
-            <button
-              key={opt.key}
-              onClick={() => handleSortChange(opt.key)}
-              className={`
-                inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm
-                transition-all duration-200
-                ${filters.sortBy === opt.key
-                  ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-                }
-              `}
-            >
-              <span>{opt.emoji}</span>
-              <span className="hidden sm:inline">{opt.label}</span>
-            </button>
-          ))}
-        </div>
-
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className={`
-            ml-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm
-            transition-all duration-200
-            ${hasActiveFilters
-              ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-            }
-          `}
-        >
-          <span>{isExpanded ? '\u25B2' : '\u25BC'}</span>
-          <span>Filtros</span>
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      {/* Header */}
+      <button
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-gray-700">Filtros</span>
           {hasActiveFilters && (
-            <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-blue-500" />
           )}
-        </button>
-      </div>
+        </div>
+        <span className="text-gray-400 text-xs">
+          {isCollapsed ? 'Mostrar' : 'Ocultar'}
+        </span>
+      </button>
 
-      {/* Expandable filter section */}
-      {isExpanded && (
-        <div className="space-y-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 animate-in slide-in-from-top-2 duration-200">
-          {/* Tone filter */}
+      {!isCollapsed && (
+        <div className="px-4 pb-4 space-y-5">
+          {/* Sort */}
           <div>
-            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider block mb-2">
-              Filtrar por tono:
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {(Object.keys(TONE_TAGS) as ToneTagType[]).map((tone) => (
-                <ToneTagBadge
-                  key={tone}
-                  toneTag={tone}
-                  size="sm"
-                  isSelected={filters.toneTag === tone}
-                  onClick={() => handleToneFilter(tone)}
-                />
-              ))}
-              {filters.toneTag && (
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+              Ordenar por
+            </label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {FEED_SORT_OPTIONS.map((option) => (
                 <button
-                  onClick={() => handleToneFilter(null)}
-                  className="text-xs px-2 py-0.5 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  key={option.key}
+                  onClick={() => onSortChange(option.key)}
+                  className={`
+                    group relative px-3 py-2 rounded-lg text-xs font-medium
+                    transition-all text-left
+                    ${sort === option.key
+                      ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    }
+                  `}
                 >
-                  Limpiar
+                  {option.label}
+                  {/* Tooltip */}
+                  <span
+                    className="
+                      absolute bottom-full left-1/2 -translate-x-1/2 mb-1
+                      px-2 py-1 rounded text-[10px] text-white bg-gray-800
+                      opacity-0 group-hover:opacity-100 transition-opacity
+                      pointer-events-none whitespace-nowrap z-10
+                    "
+                  >
+                    {option.description}
+                  </span>
                 </button>
-              )}
+              ))}
             </div>
           </div>
 
-          {/* Tag filter */}
-          {popularTags.length > 0 && (
+          {/* Search */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+              Buscar
+            </label>
+            <div className="flex gap-1.5">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
+                placeholder="Buscar en posts..."
+                className="
+                  flex-1 px-3 py-1.5 rounded-lg border border-gray-200
+                  text-xs placeholder-gray-400
+                  focus:outline-none focus:ring-2 focus:ring-blue-200
+                "
+              />
+              <button
+                onClick={handleSearchSubmit}
+                className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs hover:bg-gray-200"
+              >
+                Ir
+              </button>
+            </div>
+          </div>
+
+          {/* Tone Tag filter */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+              Tono
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => onFiltersChange({ ...filters, toneTag: undefined })}
+                className={`
+                  px-2.5 py-1 rounded-full text-xs font-medium transition-all
+                  ${!filters.toneTag
+                    ? 'bg-gray-800 text-white'
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }
+                `}
+              >
+                Todos
+              </button>
+              {allToneTags.map((tag) => (
+                <button
+                  key={tag.key}
+                  onClick={() =>
+                    onFiltersChange({
+                      ...filters,
+                      toneTag: filters.toneTag === tag.key ? undefined : (tag.key as ToneTagType),
+                    })
+                  }
+                  className={`
+                    px-2.5 py-1 rounded-full text-xs font-medium transition-all
+                    ${filters.toneTag === tag.key
+                      ? 'ring-1 ring-offset-1 shadow-sm'
+                      : 'opacity-60 hover:opacity-100'
+                    }
+                  `}
+                  style={{
+                    backgroundColor: `${tag.color}15`,
+                    color: tag.color,
+                    ringColor: filters.toneTag === tag.key ? tag.color : undefined,
+                  }}
+                >
+                  {tag.emoji} {tag.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Hyperfocus filter */}
+          {userHyperfoci.length > 0 && (
             <div>
-              <span className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider block mb-2">
-                Tags populares:
-              </span>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                Hiperfoco
+              </label>
               <div className="flex flex-wrap gap-1.5">
-                {popularTags.map((tag) => (
+                <button
+                  onClick={() => onFiltersChange({ ...filters, hyperfocus: undefined })}
+                  className={`
+                    px-2.5 py-1 rounded-full text-xs font-medium transition-all
+                    ${!filters.hyperfocus
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }
+                  `}
+                >
+                  Todos
+                </button>
+                {userHyperfoci.map((hf) => (
                   <button
-                    key={tag}
-                    onClick={() => handleTagFilter(tag)}
+                    key={hf}
+                    onClick={() =>
+                      onFiltersChange({
+                        ...filters,
+                        hyperfocus: filters.hyperfocus === hf ? undefined : hf,
+                      })
+                    }
                     className={`
-                      text-xs px-2.5 py-1 rounded-full transition-all duration-200
-                      ${filters.tag === tag
-                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      px-2.5 py-1 rounded-full text-xs font-medium transition-all
+                      ${filters.hyperfocus === hf
+                        ? 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-300'
+                        : 'bg-indigo-50 text-indigo-500 hover:bg-indigo-100'
                       }
                     `}
                   >
-                    #{tag}
+                    # {hf}
                   </button>
                 ))}
               </div>
             </div>
           )}
 
+          {/* Info Dump toggle */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-600">Solo Info Dumps</span>
+            <button
+              onClick={() =>
+                onFiltersChange({
+                  ...filters,
+                  isInfoDump: filters.isInfoDump ? undefined : true,
+                })
+              }
+              className={`
+                relative w-10 h-5 rounded-full transition-colors
+                ${filters.isInfoDump ? 'bg-green-500' : 'bg-gray-300'}
+              `}
+              role="switch"
+              aria-checked={!!filters.isInfoDump}
+            >
+              <span
+                className={`
+                  absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white
+                  shadow transition-transform
+                  ${filters.isInfoDump ? 'translate-x-5' : ''}
+                `}
+              />
+            </button>
+          </div>
+
           {/* Clear all */}
           {hasActiveFilters && (
             <button
-              onClick={() => onFiltersChange({ ...filters, toneTag: null, tag: null })}
-              className="text-xs text-red-500 hover:text-red-600 transition-colors"
+              onClick={handleClearAll}
+              className="w-full text-center text-xs text-red-500 hover:text-red-600 py-1"
             >
               Limpiar todos los filtros
             </button>
