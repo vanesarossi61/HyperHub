@@ -1,75 +1,72 @@
 'use client'
 
 import { useMemo } from 'react'
-import { toBionicText } from '@/lib/bionicReading'
-import type { BionicWord } from '@/lib/bionicReading'
+import { READING_CONFIG } from '@hyperhub/shared'
+
+// ============================================================
+// BionicText -- Bionic reading: bold first part of each word
+// Helps neurodivergent readers maintain focus and speed
+// ============================================================
 
 interface BionicTextProps {
   text: string
   enabled?: boolean
   className?: string
+  boldRatio?: number
+  minWordLength?: number
 }
 
-/**
- * BionicText - Renders text with bionic reading formatting
- * 
- * Bolds the first portion of each word to create fixation points
- * that help neurodivergent readers process text more efficiently.
- * 
- * Gracefully falls back to normal text when disabled.
- */
-export function BionicText({ text, enabled = true, className = '' }: BionicTextProps) {
-  const bionicWords = useMemo(() => {
-    if (!enabled) return null
-    return toBionicText(text)
-  }, [text, enabled])
+export function BionicText({
+  text,
+  enabled = true,
+  className = '',
+  boldRatio = READING_CONFIG.bionicBoldRatio,
+  minWordLength = READING_CONFIG.bionicMinWordLength,
+}: BionicTextProps) {
+  const renderedContent = useMemo(() => {
+    if (!enabled) return text
 
-  if (!enabled || !bionicWords) {
-    return <span className={className}>{text}</span>
-  }
+    // Split text preserving whitespace and newlines
+    const parts = text.split(/(\s+)/)
+
+    return parts.map((part, index) => {
+      // If it's whitespace, return as-is
+      if (/^\s+$/.test(part)) {
+        // Convert newlines to <br/>
+        if (part.includes('\n')) {
+          const segments = part.split('\n')
+          return segments.map((seg, i) => (
+            <span key={`${index}-${i}`}>
+              {seg}
+              {i < segments.length - 1 && <br />}
+            </span>
+          ))
+        }
+        return <span key={index}>{part}</span>
+      }
+
+      // Short words: don't apply bionic
+      if (part.length < minWordLength) {
+        return <span key={index}>{part}</span>
+      }
+
+      // Calculate bold portion
+      const boldLength = Math.ceil(part.length * boldRatio)
+      const boldPart = part.slice(0, boldLength)
+      const normalPart = part.slice(boldLength)
+
+      return (
+        <span key={index}>
+          <strong className="font-semibold">{boldPart}</strong>
+          <span className="font-normal">{normalPart}</span>
+        </span>
+      )
+    })
+  }, [text, enabled, boldRatio, minWordLength])
 
   return (
-    <span className={className}>
-      {bionicWords.map((word: BionicWord, index: number) => {
-        if (!word.bold && !word.normal) return null
-        if (!word.bold) return <span key={index}>{word.normal}</span>
-
-        return (
-          <span key={index}>
-            <strong className="font-bold">{word.bold}</strong>
-            {word.normal}
-          </span>
-        )
-      })}
+    <span className={`bionic-text ${className}`}>
+      {renderedContent}
     </span>
-  )
-}
-
-// Paragraph variant that handles multi-line text
-interface BionicParagraphProps {
-  text: string
-  enabled?: boolean
-  className?: string
-}
-
-export function BionicParagraph({ text, enabled = true, className = '' }: BionicParagraphProps) {
-  const paragraphs = text.split('\n\n')
-
-  return (
-    <div className={`space-y-3 ${className}`}>
-      {paragraphs.map((para, i) => {
-        const lines = para.split('\n')
-        return (
-          <p key={i} className="leading-relaxed">
-            {lines.map((line, j) => (
-              <span key={j}>
-                {j > 0 && <br />}
-                <BionicText text={line} enabled={enabled} />
-              </span>
-            ))}
-          </p>
-        )
-      })}
-    </div>
   )
 }
