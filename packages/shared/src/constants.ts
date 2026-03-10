@@ -4,9 +4,9 @@ import type {
   InfoDensityType,
   ContrastModeType,
   OnboardingStepType,
-  SensoryPreset,
   ReactionTypeValue,
-  VisibilityType,
+  SensoryPreset,
+  FeedSortOption,
 } from './types'
 
 // ============================================================
@@ -91,7 +91,7 @@ export const TONE_TAGS = {
   QUESTION: {
     key: 'QUESTION' as const,
     label: 'Pregunta',
-    emoji: '\u{2753}',
+    emoji: '\u{1F4AC}',
     color: '#F97316',
     description: 'Necesito ayuda/info',
   },
@@ -105,6 +105,151 @@ export const TONE_TAGS = {
 } as const
 
 export type ToneTagKey = keyof typeof TONE_TAGS
+
+// ============================================================
+// Reaction Types (Phase 3) -- Neurodivergent-friendly
+// ============================================================
+
+export const REACTION_TYPES: Record<ReactionTypeValue, {
+  key: ReactionTypeValue
+  label: string
+  emoji: string
+  description: string
+  color: string
+}> = {
+  SAME_HERE: {
+    key: 'SAME_HERE',
+    label: 'Yo tambien!',
+    emoji: '\u{1F64B}',
+    description: 'Me siento igual, no estas solo/a',
+    color: '#3B82F6',
+  },
+  BRAIN_EXPLODE: {
+    key: 'BRAIN_EXPLODE',
+    label: 'Cerebro Explotado',
+    emoji: '\u{1F92F}',
+    description: 'Esto me volo la cabeza',
+    color: '#8B5CF6',
+  },
+  HYPERFOCUS: {
+    key: 'HYPERFOCUS',
+    label: 'Hiperfoco Activado',
+    emoji: '\u{1F3AF}',
+    description: 'Ahora esto es mi nuevo hiperfoco',
+    color: '#F59E0B',
+  },
+  SPOON_GIFT: {
+    key: 'SPOON_GIFT',
+    label: 'Te Regalo una Cuchara',
+    emoji: '\u{1F944}',
+    description: 'Toma energia, la necesitas (spoon theory)',
+    color: '#10B981',
+  },
+  INFODUMP_THANKS: {
+    key: 'INFODUMP_THANKS',
+    label: 'Gracias por el Info Dump',
+    emoji: '\u{1F4DA}',
+    description: 'Amo que compartas lo que sabes',
+    color: '#06B6D4',
+  },
+  HUG: {
+    key: 'HUG',
+    label: 'Abrazo Virtual',
+    emoji: '\u{1FAC2}',
+    description: 'Te mando un abrazo (si lo aceptas)',
+    color: '#EC4899',
+  },
+  SENSORY_OVERLOAD: {
+    key: 'SENSORY_OVERLOAD',
+    label: 'Sobrecarga Sensorial',
+    emoji: '\u{26A1}',
+    description: 'Esto me genera mucho estimulo (no es malo, es info)',
+    color: '#EF4444',
+  },
+}
+
+// ============================================================
+// Feed Configuration (Phase 3)
+// ============================================================
+
+export const FEED_SORT_OPTIONS: { key: FeedSortOption; label: string; description: string }[] = [
+  {
+    key: 'recent',
+    label: 'Mas Recientes',
+    description: 'Posts mas nuevos primero',
+  },
+  {
+    key: 'trending',
+    label: 'Tendencia',
+    description: 'Lo que mas reacciones tiene ahora',
+  },
+  {
+    key: 'hyperfocus_match',
+    label: 'Mis Hiperfocos',
+    description: 'Posts que coinciden con tus intereses actuales',
+  },
+  {
+    key: 'spoon_friendly',
+    label: 'Bajo Esfuerzo',
+    description: 'Posts cortos y faciles de consumir (para dias de baja energia)',
+  },
+]
+
+export const POST_LIMITS = {
+  maxTitleLength: 150,
+  maxContentLength: 10000,
+  maxHyperfociPerPost: 5,
+  infoDumpThreshold: 300, // words -- auto-mark as info dump
+  tldrMinWords: 50, // Minimum words to show TL;DR button
+  previewLength: 280, // Characters to show in feed card
+  maxCommentLength: 2000,
+  maxCommentDepth: 3, // Max nesting level for replies
+} as const
+
+export const FEED_CONFIG = {
+  defaultPageSize: 20,
+  maxPageSize: 50,
+  infiniteScrollThreshold: 0.8, // Load more when 80% scrolled
+  staleTime: 30 * 1000, // 30 seconds before refetch
+  cacheTime: 5 * 60 * 1000, // 5 minutes cache
+  // Dopamine curation weights
+  dopamineWeights: {
+    recency: 0.3,
+    hyperfocusMatch: 0.35,
+    novelty: 0.2,
+    communityEngagement: 0.15,
+  },
+} as const
+
+export const READING_CONFIG = {
+  wordsPerMinute: 200, // Average reading speed
+  bionicBoldRatio: 0.4, // Bold first 40% of each word
+  bionicMinWordLength: 3, // Only apply bionic to words >= 3 chars
+} as const
+
+export const ANTI_RABBIT_HOLE_CONFIG = {
+  checkIntervalMs: 15 * 60 * 1000, // Check every 15 min
+  softNudgeMinutes: 30, // First nudge at 30 min
+  mediumNudgeMinutes: 60, // Second nudge at 60 min
+  strongNudgeMinutes: 90, // Strong nudge at 90 min
+  messages: {
+    soft: [
+      'Llevas un rato aca. Tomaste agua?',
+      'Recordatorio amable: tu cuerpo existe. Estiramiento rapido?',
+      'Check-in: como va tu bateria social?',
+    ],
+    medium: [
+      'Llevas 1 hora en el feed. Queres hacer una pausa?',
+      'Tu cerebro merece un descanso. 5 minutos de nada?',
+      'Idea: caminar al bano aunque no tengas ganas',
+    ],
+    strong: [
+      'Llevas 90 min. Es mucho estimulo. Te sugiero cerrar un rato.',
+      'Rabbit hole detectado. No pasa nada, pero tu yo del futuro te va a agradecer el break.',
+      'Pausa obligatoria recomendada. Podes volver en 10 min.',
+    ],
+  },
+} as const
 
 // ============================================================
 // Neurodiv Types
@@ -271,14 +416,14 @@ export const APP_CONFIG = {
   name: 'HyperHub',
   tagline: 'Tu Espacio Seguro',
   description: 'Red social disenada para personas con TDAH',
-  maxHyperfoci: 3,
+  maxHyperfoci: 5, // Expanded from 3 in Phase 3
   maxBioLength: 500,
   maxDisplayNameLength: 50,
   maxHyperfocusHistory: 20,
   defaultBatteryLevel: 'GREEN' as const,
   batteryDecayDefaultMinutes: 120,
   batteryDelayYellowMs: 5 * 60 * 1000,
-  version: '0.3.0',
+  version: '0.3.0', // Phase 3
 } as const
 
 // ============================================================
@@ -290,133 +435,4 @@ export const BATTERY_MIDDLEWARE_CONFIG = {
   YELLOW: { action: 'delay', delayMs: 5 * 60 * 1000 },
   RED: { action: 'queue', delayMs: null },
   LURKER: { action: 'reject', delayMs: null },
-} as const
-
-// ============================================================
-// Reactions (New - Phase 3)
-// ============================================================
-
-export const REACTIONS: Record<ReactionTypeValue, { label: string; emoji: string; description: string; color: string }> = {
-  ME_TOO: {
-    label: 'Yo Tambien',
-    emoji: '\u{1F64B}',
-    description: 'Me identifico con esto',
-    color: '#F59E0B',
-  },
-  BRAIN_EXPLODE: {
-    label: 'Cerebro Explotado',
-    emoji: '\u{1F92F}',
-    description: 'Esto me volo la cabeza',
-    color: '#EF4444',
-  },
-  HYPERFOCUS_ACTIVATED: {
-    label: 'Hiperfoco Activado',
-    emoji: '\u{1F3AF}',
-    description: 'Ahora necesito saber todo sobre esto',
-    color: '#8B5CF6',
-  },
-  GENTLE_HUG: {
-    label: 'Abrazo Gentil',
-    emoji: '\u{1FAC2}',
-    description: 'Te mando un abrazo virtual',
-    color: '#EC4899',
-  },
-  INFO_GOLD: {
-    label: 'Oro Informativo',
-    emoji: '\u{1F4A1}',
-    description: 'Informacion super valiosa',
-    color: '#10B981',
-  },
-}
-
-// ============================================================
-// Visibility Options (New - Phase 3)
-// ============================================================
-
-export const VISIBILITY_OPTIONS: Record<VisibilityType, { label: string; description: string; emoji: string }> = {
-  PUBLIC: {
-    label: 'Publico',
-    description: 'Visible para toda la comunidad',
-    emoji: '\u{1F30D}',
-  },
-  FOLLOWERS: {
-    label: 'Seguidores',
-    description: 'Solo tus seguidores pueden ver',
-    emoji: '\u{1F465}',
-  },
-  HYPERFOCUS_GROUP: {
-    label: 'Grupo de Hiperfoco',
-    description: 'Solo personas con hiperfocos similares',
-    emoji: '\u{1F3AF}',
-  },
-  PRIVATE: {
-    label: 'Privado',
-    description: 'Solo tu puedes ver',
-    emoji: '\u{1F512}',
-  },
-}
-
-// ============================================================
-// Feed Config (New - Phase 3)
-// ============================================================
-
-export const FEED_CONFIG = {
-  postsPerPage: 15,
-  maxPostLength: 5000,
-  maxMediaUrls: 4,
-  maxTagsPerPost: 5,
-  
-  // Dopamine curation weights
-  curation: {
-    hyperfocusMatchWeight: 3.0,
-    freshnessWeight: 2.0,
-    tonePreferenceWeight: 1.5,
-    sameTopicPenalty: -1.5,
-    sameAuthorPenalty: -2.0,
-    serendipityFactor: 0.10,
-  },
-  
-  // Freshness decay
-  freshnessHalfLifeHours: 24,
-  freshnessMaxDays: 7,
-} as const
-
-// ============================================================
-// Reading Config (New - Phase 3)
-// ============================================================
-
-export const READING_CONFIG = {
-  averageWPM: 200,
-  bionicBoldRatio: 0.4,
-  longPostThreshold: 300,
-  tldrMaxLength: 280,
-  tldrCacheDurationHours: 168,
-} as const
-
-// ============================================================
-// Anti-Rabbit Hole Config (New - Phase 3)
-// ============================================================
-
-export const ANTI_RABBIT_HOLE = {
-  enabled: true,
-  sectionTimerMinutes: 30,
-  gentleNudgeAfterPosts: 20,
-  breakSuggestionMinutes: 45,
-  neverGuilty: true,
-  
-  nudgeMessages: [
-    'Oye, llevas un rato aca. Todo bien? Quizas es buen momento para estirarte.',
-    'Tu cerebro hizo un gran trabajo hoy. Que tal un descanso?',
-    'Recordatorio amistoso: el mundo exterior tambien existe. Pero no hay prisa.',
-    'Llevas {minutes} minutos. Nada de malo, solo queria que supieras.',
-    'Pausa sugerida! Tu bateria social te lo agradecera.',
-  ],
-  
-  breakActivities: [
-    { emoji: '\u{1F4A7}', label: 'Tomar agua', durationMinutes: 2 },
-    { emoji: '\u{1F6B6}', label: 'Caminar un poco', durationMinutes: 5 },
-    { emoji: '\u{1F9D8}', label: 'Respirar profundo', durationMinutes: 3 },
-    { emoji: '\u{1F3B5}', label: 'Escuchar una cancion', durationMinutes: 4 },
-    { emoji: '\u{1F431}', label: 'Acariciar a tu mascota', durationMinutes: 5 },
-  ],
 } as const
