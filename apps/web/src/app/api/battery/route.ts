@@ -16,7 +16,13 @@ export async function GET() {
 
     const user = await prisma.user.findUnique({
       where: { clerkId },
-      include: { socialBattery: true },
+      include: {
+        socialBattery: true,
+        batteryHistory: {
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        },
+      },
     })
 
     if (!user || !user.socialBattery) {
@@ -28,7 +34,10 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      data: user.socialBattery,
+      data: {
+        battery: user.socialBattery,
+        history: user.batteryHistory,
+      },
     })
   } catch (error) {
     console.error('[API] GET /api/battery error:', error)
@@ -51,7 +60,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = (await request.json()) as BatteryUpdateRequest
-    const { level } = body
+    const { level, manualOverride } = body
 
     const validLevels = ['GREEN', 'YELLOW', 'RED', 'LURKER']
     if (!level || !validLevels.includes(level)) {
@@ -63,7 +72,7 @@ export async function PUT(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { clerkId },
-      select: { id: true },
+      include: { socialBattery: true },
     })
 
     if (!user) {
@@ -73,18 +82,35 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    const previousLevel = user.socialBattery?.level || 'GREEN'
+
+    // Update battery level
     const battery = await prisma.socialBattery.upsert({
       where: { userId: user.id },
       update: {
         level,
+        manualOverride: manualOverride ?? true,
         lastLevelChange: new Date(),
         lastActivity: new Date(),
       },
       create: {
         userId: user.id,
         level,
+        manualOverride: manualOverride ?? true,
       },
     })
+
+    // Record history if level actually changed
+    if (previousLevel !== level) {
+      await prisma.batteryHistory.create({
+        data: {
+          userId: user.id,
+          fromLevel: previousLevel,
+          toLevel: level,
+          reason: 'manual',
+        },
+      })
+    }
 
     return NextResponse.json({
       success: true,
