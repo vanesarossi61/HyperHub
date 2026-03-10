@@ -89,8 +89,43 @@ enum Visibility {
   PRIVATE
 }
 
+// Phase 4 Enums
+enum ConversationType {
+  DIRECT        // 1:1 chat
+  GROUP         // Group chat (2-8 people)
+  SAFE_SPACE    // Moderated safe space channel
+}
+
+enum MessageStatus {
+  QUEUED        // In battery queue (recipient RED/LURKER)
+  DELIVERED     // Delivered to recipient
+  READ          // Read by recipient
+  FAILED        // Delivery failed
+}
+
+enum ParticipantRole {
+  OWNER         // Created the conversation
+  ADMIN         // Can manage participants
+  MEMBER        // Regular participant
+}
+
+enum SafeExitReason {
+  NEED_BREAK        // "Necesito tomar una pausa"
+  SENSORY_OVERLOAD  // "Sobrecarga sensorial"
+  LOW_BATTERY       // Auto-triggered by battery RED
+  OVERWHELMED       // "Me siento abrumado/a"
+  CUSTOM            // Custom reason
+}
+
+enum NotificationPriority {
+  SILENT    // No notification at all
+  LOW       // Badge only, no sound/vibration
+  NORMAL    // Standard notification
+  URGENT    // Override DND for safety messages
+}
+
 // ============================================================
-// User Model
+// User Model (Updated for Phase 4)
 // ============================================================
 
 model User {
@@ -110,12 +145,19 @@ model User {
   reactions          Reaction[]
   bookmarks          Bookmark[]
 
+  // Phase 4: Messaging relations
+  conversationParticipants ConversationParticipant[]
+  sentMessages             Message[]
+  messageReads             MessageRead[]
+  safeExits                SafeExit[]
+  notificationPrefs        NotificationPreference?
+
   @@index([clerkId])
   @@index([email])
 }
 
 // ============================================================
-// Profile Model (Expanded for Phase 2)
+// Profile Model (Phase 2)
 // ============================================================
 
 model Profile {
@@ -126,26 +168,22 @@ model Profile {
   bio         String?
   avatarUrl   String?
 
-  // Identity
   pronouns    String?
-  ageRange    String?  // "18-24", "25-34", "35-44", "45-54", "55+"
-  timezone    String?  // IANA timezone e.g. "America/Buenos_Aires"
-  languages   String[] // ["es", "en"]
+  ageRange    String?
+  timezone    String?
+  languages   String[]
 
-  // Neurodivergent-specific (Phase 2 expanded)
-  neurodivTypes      NeurodivType[] // Multi-select, no judgement
+  neurodivTypes      NeurodivType[]
   selfDiagnosed      Boolean        @default(false)
-  diagnosisOptional  String?        // Free text, totally optional
-  comfortTopics      String[]       // Topics they are comfortable discussing
-  triggerWarnings    String[]       // Content they want warned about
-  communicationStyle String?        // How they prefer to communicate
-  currentMood        String?        // Current mood emoji/text
+  diagnosisOptional  String?
+  comfortTopics      String[]
+  triggerWarnings    String[]
+  communicationStyle String?
+  currentMood        String?
 
-  // Hyperfoci
-  hyperfocusHistory String[] // Past interests
-  currentHyperfoci  String[] // Max 3 active
+  hyperfocusHistory String[]
+  currentHyperfoci  String[]
 
-  // Onboarding
   onboardingStep      OnboardingStep @default(BASICS)
   onboardingCompleted Boolean        @default(false)
 
@@ -154,7 +192,7 @@ model Profile {
 }
 
 // ============================================================
-// Sensory Preferences (Expanded for Phase 2)
+// Sensory Preferences (Phase 2)
 // ============================================================
 
 model SensoryPreferences {
@@ -162,33 +200,29 @@ model SensoryPreferences {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Visual
   colorPalette        ContrastMode       @default(DEFAULT)
   animationTolerance  AnimationTolerance @default(MINIMAL)
   informationDensity  InfoDensity        @default(COMFORTABLE)
-  transitionSpeed     String             @default("normal")  // instant, fast, normal, slow
-  fontScale           Float              @default(1.0)        // 0.8 to 1.5
+  transitionSpeed     String             @default("normal")
+  fontScale           Float              @default(1.0)
   reducedMotion       Boolean            @default(true)
 
-  // Reading
   bionicReadingEnabled Boolean @default(false)
   dyslexicFontEnabled  Boolean @default(false)
-  lineSpacing          String  @default("normal") // tight, normal, relaxed, double
+  lineSpacing          String  @default("normal")
 
-  // Notifications
-  notificationIntensity String  @default("gentle") // silent, gentle, moderate, full
+  notificationIntensity String  @default("gentle")
   soundEnabled          Boolean @default(false)
   hapticEnabled         Boolean @default(true)
 
-  // Preset name (for quick switching)
-  activePreset String? // "calm", "focus", "high-energy", "minimal", or null for custom
+  activePreset String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 // ============================================================
-// Social Battery (Expanded for Phase 2)
+// Social Battery (Phase 2)
 // ============================================================
 
 model SocialBattery {
@@ -197,15 +231,11 @@ model SocialBattery {
   user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   level  BatteryLevel @default(GREEN)
 
-  // Manual override
   manualOverride    Boolean @default(false)
-
-  // Auto-management
   autoDecayEnabled  Boolean @default(true)
   decayRateMinutes  Int     @default(120)
   rechargeReminders Boolean @default(true)
 
-  // Schedule
   autoLurkerStart String?
   autoLurkerEnd   String?
 
@@ -241,23 +271,19 @@ model Post {
   authorId String
   author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-  // Content
   title   String?
   content String   @db.Text
   toneTag ToneTag
 
-  // Metadata
-  hyperfoci    String[]   // Tags de hiperfoco asociados al post
+  hyperfoci    String[]
   wordCount    Int        @default(0)
-  isInfoDump   Boolean    @default(false) // Auto-detectado si wordCount > 300
-  tldrSummary  String?    @db.Text // Cache del resumen IA
+  isInfoDump   Boolean    @default(false)
+  tldrSummary  String?    @db.Text
   visibility   Visibility @default(PUBLIC)
 
-  // Status
   published Boolean @default(true)
   pinned    Boolean @default(false)
 
-  // Relations
   comments  Comment[]
   reactions Reaction[]
   bookmarks Bookmark[]
@@ -285,7 +311,6 @@ model Comment {
   content String  @db.Text
   toneTag ToneTag?
 
-  // Nested comments (reply to another comment)
   parentId String?
   parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
   replies  Comment[] @relation("CommentReplies")
@@ -312,7 +337,7 @@ model Reaction {
 
   createdAt DateTime @default(now())
 
-  @@unique([postId, userId, type]) // Un usuario = una reaccion de cada tipo por post
+  @@unique([postId, userId, type])
   @@index([postId])
   @@index([userId])
 }
@@ -328,9 +353,185 @@ model Bookmark {
   postId String
   post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
 
-  folder    String?  // Carpeta de bookmark personalizada
+  folder    String?
   createdAt DateTime @default(now())
 
-  @@unique([userId, postId]) // No duplicar bookmarks
+  @@unique([userId, postId])
   @@index([userId, createdAt])
+}
+
+// ============================================================
+// Phase 4: Conversation Model
+// ============================================================
+
+model Conversation {
+  id   String           @id @default(cuid())
+  type ConversationType @default(DIRECT)
+
+  // Group metadata (null for DIRECT)
+  name        String?  // Group name
+  description String?  // Group description
+  avatarUrl   String?  // Group avatar
+  maxMembers  Int      @default(2) // 2 for DIRECT, up to 8 for GROUP
+
+  // Tone tag requirement -- every message must have one
+  toneTagRequired Boolean @default(true)
+
+  // Safe space settings
+  slowModeSeconds  Int     @default(0) // 0 = disabled, >0 = min seconds between messages
+  contentWarnings  Boolean @default(false) // Require CW on messages
+
+  // Status
+  isActive  Boolean  @default(true)
+  lastMessageAt DateTime?
+
+  // Relations
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([isActive, lastMessageAt])
+}
+
+// ============================================================
+// Phase 4: Conversation Participant
+// ============================================================
+
+model ConversationParticipant {
+  id             String          @id @default(cuid())
+  conversationId String
+  conversation   Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           ParticipantRole @default(MEMBER)
+
+  // Notification preferences per conversation
+  muted         Boolean @default(false)
+  pinned        Boolean @default(false)
+
+  // Nickname within this conversation
+  nickname      String?
+
+  // Tracking
+  lastReadAt    DateTime?
+  joinedAt      DateTime @default(now())
+  leftAt        DateTime? // null = still in conversation
+
+  @@unique([conversationId, userId])
+  @@index([userId, leftAt]) // Find active conversations for a user
+  @@index([conversationId])
+}
+
+// ============================================================
+// Phase 4: Message Model
+// ============================================================
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  // Content
+  content   String        @db.Text
+  toneTag   ToneTag       // Required: every message has a tone tag
+
+  // Delivery
+  status    MessageStatus @default(DELIVERED)
+
+  // Reply threading
+  replyToId String?
+  replyTo   Message?      @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   Message[]     @relation("MessageReplies")
+
+  // Metadata
+  editedAt  DateTime?
+  isSystem  Boolean       @default(false) // System messages (join, leave, safe exit)
+
+  // Relations
+  reads     MessageRead[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@index([status])
+  @@index([replyToId])
+}
+
+// ============================================================
+// Phase 4: Message Read Receipt
+// ============================================================
+
+model MessageRead {
+  id        String  @id @default(cuid())
+  messageId String
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt    DateTime @default(now())
+
+  @@unique([messageId, userId])
+  @@index([userId, readAt])
+}
+
+// ============================================================
+// Phase 4: Safe Exit Log
+// ============================================================
+
+model SafeExit {
+  id             String          @id @default(cuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId String?         // null = exited all conversations
+  reason         SafeExitReason
+  customMessage  String?         // If reason is CUSTOM
+  autoMessage    String          // Message shown to others: "[User] necesita una pausa"
+
+  // Duration
+  exitedAt       DateTime        @default(now())
+  returnedAt     DateTime?       // null = still on break
+  plannedReturn  DateTime?       // Optional: "Vuelvo en 30 min"
+
+  @@index([userId, exitedAt])
+  @@index([conversationId])
+}
+
+// ============================================================
+// Phase 4: Notification Preferences (per user global)
+// ============================================================
+
+model NotificationPreference {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Battery-adaptive delivery
+  greenBattery   NotificationPriority @default(NORMAL)
+  yellowBattery  NotificationPriority @default(LOW)
+  redBattery     NotificationPriority @default(SILENT)
+  lurkerBattery  NotificationPriority @default(SILENT)
+
+  // Quiet hours
+  quietHoursEnabled Boolean  @default(false)
+  quietHoursStart   String?  // "22:00"
+  quietHoursEnd     String?  // "08:00"
+
+  // Digest mode -- batch notifications instead of real-time
+  digestEnabled     Boolean  @default(false)
+  digestIntervalMin Int      @default(30) // Minutes between digests
+
+  // Per-type toggles
+  newMessageEnabled   Boolean @default(true)
+  mentionEnabled      Boolean @default(true)
+  reactionEnabled     Boolean @default(true)
+  safeExitEnabled     Boolean @default(true) // Notify when someone safe-exits
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
