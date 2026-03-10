@@ -1,11 +1,26 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import type { PostPublic, FeedFilters, FeedPage, ApiResponse } from '@hyperhub/shared'
+import type {
+  PostPublic,
+  FeedFilters,
+  FeedSortOption,
+  FeedResponse,
+  CreatePostRequest,
+  ToggleReactionRequest,
+  ReactionTypeValue,
+  TldrResponse,
+} from '@hyperhub/shared'
+import { FEED_CONFIG } from '@hyperhub/shared'
+
+// ============================================================
+// useFeed -- Infinite scroll feed with filters & sort
+// ============================================================
 
 interface UseFeedOptions {
+  initialSort?: FeedSortOption
   initialFilters?: FeedFilters
-  autoLoad?: boolean
+  pageSize?: number
 }
 
 interface UseFeedReturn {
@@ -15,158 +30,226 @@ interface UseFeedReturn {
   error: string | null
   hasMore: boolean
   filters: FeedFilters
-  totalEstimate: number
+  sort: FeedSortOption
+  setFilters: (filters: FeedFilters) => void
+  setSort: (sort: FeedSortOption) => void
   loadMore: () => Promise<void>
   refresh: () => Promise<void>
-  setFilters: (filters: FeedFilters) => void
-  toggleReaction: (postId: string, type: string) => Promise<void>
+  createPost: (data: CreatePostRequest) => Promise<PostPublic | null>
+  deletePost: (postId: string) => Promise<boolean>
+  toggleReaction: (postId: string, type: ReactionTypeValue) => Promise<void>
   toggleBookmark: (postId: string) => Promise<void>
+  generateTldr: (postId: string) => Promise<TldrResponse | null>
 }
 
 export function useFeed(options: UseFeedOptions = {}): UseFeedReturn {
-  const { initialFilters = {}, autoLoad = true } = options
+  const {
+    initialSort = 'recent',
+    initialFilters = {},
+    pageSize = FEED_CONFIG.defaultPageSize,
+  } = options
 
   const [posts, setPosts] = useState<PostPublic[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
-  const [cursor, setCursor] = useState<string | null>(null)
-  const [filters, setFiltersState] = useState<FeedFilters>(initialFilters)
-  const [totalEstimate, setTotalEstimate] = useState(0)
-  const abortRef = useRef<AbortController | null>(null)
+  const [filters, setFilters] = useState<FeedFilters>(initialFilters)
+  const [sort, setSort] = useState<FeedSortOption>(initialSort)
+  const cursorRef = useRef<string | null>(null)
 
-  const buildUrl = useCallback(
-    (cursorParam: string | null) => {
+  // Build query string from filters
+  const buildQuery = useCallback(
+    (cursor?: string) => {
       const params = new URLSearchParams()
-      if (cursorParam) params.set('cursor', cursorParam)
+      params.set('limit', String(pageSize))
+      params.set('sort', sort)
+
+      if (cursor) params.set('cursor', cursor)
       if (filters.toneTag) params.set('toneTag', filters.toneTag)
-      if (filters.tag) params.set('tag', filters.tag)
-      if (filters.sortBy) params.set('sortBy', filters.sortBy)
-      return `/api/posts?${params.toString()}`
+      if (filters.hyperfocus) params.set('hyperfocus', filters.hyperfocus)
+      if (filters.authorId) params.set('authorId', filters.authorId)
+      if (filters.search) params.set('search', filters.search)
+      if (filters.isInfoDump !== undefined) params.set('isInfoDump', String(filters.isInfoDump))
+
+      return params.toString()
     },
-    [filters]
+    [pageSize, sort, filters]
   )
 
+  // Fetch posts
   const fetchPosts = useCallback(
-    async (cursorParam: string | null = null, append = false) => {
-      // Cancel previous request
-      abortRef.current?.abort()
-      abortRef.current = new AbortController()
-
-      if (append) {
-        setIsLoadingMore(true)
-      } else {
-        setIsLoading(true)
-      }
-      setError(null)
-
+    async (isLoadMore = false) => {
       try {
-        const res = await fetch(buildUrl(cursorParam), {
-          signal: abortRef.current.signal,
-        })
-        const data: ApiResponse<FeedPage> = await res.json()
-
-        if (!data.success || !data.data) {
-          throw new Error(data.error || 'Error al cargar posts')
+        if (isLoadMore) {
+          setIsLoadingMore(true)
+        } else {
+          setIsLoading(true)
+          setError(null)
         }
 
-        const feed = data.data
-        setPosts((prev) => (append ? [...prev, ...feed.posts] : feed.posts))
-        setCursor(feed.nextCursor)
-        setHasMore(feed.hasMore)
-        setTotalEstimate(feed.totalEstimate)
-      } catch (err: any) {
-        if (err.name !== 'AbortError') {
-          setError(err.message || 'Error de conexion')
+        const cursor = isLoadMore ? cursorRef.current || undefined : undefined
+        const query = buildQuery(cursor)
+        const response = await fetch(`/api/posts?${query}`)
+
+        if (!response.ok) {
+          throw new Error('Error al cargar el feed')
         }
+
+        const json = await response.json()
+        const data: FeedResponse = json.data
+
+        if (isLoadMore) {
+          setPosts((prev) => [...prev, ...data.posts])
+        } else {
+          setPosts(data.posts)
+        }
+
+        cursorRef.current = data.nextCursor
+        setHasMore(data.hasMore)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error desconocido')
       } finally {
         setIsLoading(false)
         setIsLoadingMore(false)
       }
     },
-    [buildUrl]
+    [buildQuery]
   )
 
-  const loadMore = useCallback(async () => {
-    if (isLoadingMore || !hasMore || !cursor) return
-    await fetchPosts(cursor, true)
-  }, [cursor, hasMore, isLoadingMore, fetchPosts])
-
-  const refresh = useCallback(async () => {
-    setCursor(null)
-    await fetchPosts(null, false)
+  // Initial load & reload on filter/sort change
+  useEffect(() => {
+    cursorRef.current = null
+    fetchPosts(false)
   }, [fetchPosts])
 
-  const setFilters = useCallback((newFilters: FeedFilters) => {
-    setFiltersState(newFilters)
-    setCursor(null)
-    setPosts([])
+  // Load more (infinite scroll)
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return
+    await fetchPosts(true)
+  }, [fetchPosts, isLoadingMore, hasMore])
+
+  // Refresh feed
+  const refresh = useCallback(async () => {
+    cursorRef.current = null
+    await fetchPosts(false)
+  }, [fetchPosts])
+
+  // Create post
+  const createPost = useCallback(async (data: CreatePostRequest): Promise<PostPublic | null> => {
+    try {
+      const response = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        const json = await response.json()
+        throw new Error(json.error || 'Error al crear post')
+      }
+
+      const json = await response.json()
+      // Prepend new post to feed
+      setPosts((prev) => [json.data, ...prev])
+      return json.data
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al crear post')
+      return null
+    }
   }, [])
 
-  // Toggle reaction optimistically
-  const toggleReaction = useCallback(async (postId: string, type: string) => {
+  // Delete post
+  const deletePost = useCallback(async (postId: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`/api/posts/${postId}`, { method: 'DELETE' })
+      if (!response.ok) throw new Error('Error al eliminar post')
+      setPosts((prev) => prev.filter((p) => p.id !== postId))
+      return true
+    } catch {
+      return false
+    }
+  }, [])
+
+  // Toggle reaction (optimistic update)
+  const toggleReaction = useCallback(async (postId: string, type: ReactionTypeValue) => {
+    // Optimistic update
     setPosts((prev) =>
       prev.map((post) => {
         if (post.id !== postId) return post
-        const hasReaction = post.userReactions.includes(type as any)
+
+        const hasReaction = post.userReactions.includes(type)
+        const newUserReactions = hasReaction
+          ? post.userReactions.filter((r) => r !== type)
+          : [...post.userReactions, type]
+
+        const newReactions = post.reactions.map((r) => {
+          if (r.type !== type) return r
+          return { ...r, count: hasReaction ? r.count - 1 : r.count + 1 }
+        })
+
+        // Add reaction type if it didn't exist
+        if (!hasReaction && !newReactions.find((r) => r.type === type)) {
+          newReactions.push({ type, count: 1 })
+        }
+
         return {
           ...post,
-          userReactions: hasReaction
-            ? post.userReactions.filter((r) => r !== type)
-            : [...post.userReactions, type as any],
-          reactionCount: post.reactionCount + (hasReaction ? -1 : 1),
-          reactions: post.reactions.map((r) =>
-            r.type === type
-              ? { ...r, count: r.count + (hasReaction ? -1 : 1) }
-              : r
-          ),
+          userReactions: newUserReactions,
+          reactions: newReactions.filter((r) => r.count > 0),
         }
       })
     )
 
+    // API call
     try {
       await fetch(`/api/posts/${postId}/reactions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type }),
+        body: JSON.stringify({ type } as ToggleReactionRequest),
       })
     } catch {
-      // Revert on error - refresh will fix state
-      refresh()
+      // Revert on failure by refreshing
+      await refresh()
     }
   }, [refresh])
 
-  // Toggle bookmark optimistically
+  // Toggle bookmark (optimistic update)
   const toggleBookmark = useCallback(async (postId: string) => {
     setPosts((prev) =>
-      prev.map((post) => {
-        if (post.id !== postId) return post
-        return {
-          ...post,
-          isBookmarked: !post.isBookmarked,
-          bookmarkCount: post.bookmarkCount + (post.isBookmarked ? -1 : 1),
-        }
-      })
+      prev.map((post) =>
+        post.id === postId ? { ...post, isBookmarked: !post.isBookmarked } : post
+      )
     )
 
     try {
-      await fetch(`/api/posts/${postId}/bookmark`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
+      await fetch(`/api/posts/${postId}/bookmark`, { method: 'POST' })
     } catch {
-      refresh()
+      await refresh()
     }
   }, [refresh])
 
-  // Auto-load and reload on filter change
-  useEffect(() => {
-    if (autoLoad) {
-      fetchPosts(null, false)
+  // Generate TL;DR
+  const generateTldr = useCallback(async (postId: string): Promise<TldrResponse | null> => {
+    try {
+      const response = await fetch(`/api/posts/${postId}/tldr`, { method: 'POST' })
+      if (!response.ok) throw new Error('Error al generar TL;DR')
+
+      const json = await response.json()
+      const tldr: TldrResponse = json.data
+
+      // Update post in feed with TL;DR
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.id === postId ? { ...post, tldrSummary: tldr.summary } : post
+        )
+      )
+
+      return tldr
+    } catch {
+      return null
     }
-    return () => abortRef.current?.abort()
-  }, [filters, autoLoad, fetchPosts])
+  }, [])
 
   return {
     posts,
@@ -175,11 +258,15 @@ export function useFeed(options: UseFeedOptions = {}): UseFeedReturn {
     error,
     hasMore,
     filters,
-    totalEstimate,
+    sort,
+    setFilters,
+    setSort,
     loadMore,
     refresh,
-    setFilters,
+    createPost,
+    deletePost,
     toggleReaction,
     toggleBookmark,
+    generateTldr,
   }
 }
