@@ -10,6 +10,46 @@
 - **Accesibilidad Sensorial**: Preferencias visuales, de lectura y de notificaciones personalizables
 - **Comunidad, No Competencia**: Sin likes publicos, sin metricas de vanidad
 
+## Roadmap del Proyecto
+
+| Fase | Nombre | Estado | Descripcion |
+|------|--------|--------|-------------|
+| 1 | Infraestructura | COMPLETA | Monorepo Turborepo, Clerk auth, Prisma schema, Docker Compose, configs |
+| 2 | Usuarios y Arquitectura Sensorial | COMPLETA | Onboarding 4 pasos, perfiles neurodivergentes, bateria social, preferencias sensoriales |
+| 3 | Feed y Sistema de Contenido | COMPLETA | Posts con tone tags, reacciones neurodivergentes, lectura bionica, anti-rabbit hole, bookmarks |
+| 4 | Comunicacion y Mensajeria | COMPLETA | Chat 1:1 y grupal, safe exit, cola de mensajes por bateria, notificaciones adaptativas, tone tags obligatorios |
+| 5 | Radar de Hiperfocos | PENDIENTE | Matching por intereses, debates flash, descubrimiento de hiperfocos |
+| 6 | Baul de Proyectos Abandonados | PENDIENTE | Hiperfoco Relay, rescate de proyectos, colaboracion |
+
+## Features Implementadas
+
+### Bateria Social
+Sistema unico que adapta toda la experiencia segun tu nivel de energia:
+- **Verde**: Interaccion completa, notificaciones normales
+- **Amarillo**: Mensajes demorados, interacciones breves
+- **Rojo**: Mensajes en cola, modo observador
+- **Fantasma**: Invisible, sin notificaciones, recarga total
+
+### Preferencias Sensoriales
+- 4 presets predefinidos (Calma Total, Modo Foco, Alta Energia, Ultra Minimal)
+- Control granular de animaciones, densidad, contraste, fuentes
+- Lectura bionica y fuente para dislexia
+- Notificaciones adaptadas a sensibilidad
+
+### Feed Neurodivergente
+- Tone tags obligatorios en cada post (Entusiasmo, Rant, Debate, Info Dump, Pregunta, Ayuda)
+- 7 reacciones disenadas para la comunidad (Same Here, Brain Explode, Hiperfoco, Spoon Gift, etc.)
+- Anti-Rabbit Hole: nudges suaves para evitar scrolleo compulsivo
+- Lectura bionica y resumenes TL;DR
+
+### Mensajeria Segura (Fase 4)
+- Chat 1:1, grupal (hasta 8) y Safe Spaces moderados
+- **Safe Exit**: Boton para pausar conversaciones sin culpa ni explicaciones
+- Cola de mensajes adaptada a bateria (RED = cola, LURKER = silencio)
+- Slow mode configurable en safe spaces
+- Notificaciones con prioridad por nivel de bateria
+- Quiet hours y modo digest
+
 ## Tech Stack
 
 | Capa | Tecnologia |
@@ -19,8 +59,9 @@
 | Styling | Tailwind CSS 4 + shadcn/ui |
 | Auth | Clerk |
 | Database | PostgreSQL + Prisma 6 |
-| Cache/Queues | Redis |
+| Cache/Queues | Redis (ioredis) |
 | Realtime | Socket.io (preparado) |
+| API | REST + tRPC |
 | Infra Dev | Docker Compose |
 
 ## Estructura del Monorepo
@@ -28,13 +69,27 @@
 ```
 hyperhub/
 ├── apps/
-│   └── web/              # Next.js 15 app principal
+│   └── web/                    # Next.js 15 app principal
+│       └── src/
+│           ├── app/            # App Router pages y API routes
+│           │   ├── (auth)/     # Sign-in, sign-up, webhooks Clerk
+│           │   ├── api/        # REST endpoints (profile, battery, sensory, posts)
+│           │   ├── feed/       # Feed page
+│           │   └── messages/   # Mensajeria page
+│           ├── components/     # React components
+│           │   ├── layout/     # Navbar, Sidebar, BatteryIndicator
+│           │   ├── onboarding/ # 4-step onboarding flow
+│           │   ├── feed/       # PostCard, PostComposer, FeedFilters, etc.
+│           │   └── chat/       # ConversationList, ChatWindow, MessageComposer
+│           ├── hooks/          # Custom React hooks
+│           ├── lib/            # Utilities (prisma, redis, bionic, dopamine)
+│           └── types/          # App-level type re-exports
 ├── packages/
-│   ├── db/               # Prisma schema, client y seeds
-│   ├── shared/           # Tipos, constantes y utilidades compartidas
-│   └── ui/               # Componentes UI compartidos
+│   ├── db/                     # Prisma schema, client, seeds
+│   ├── shared/                 # Tipos, constantes, utilidades compartidas
+│   └── ui/                     # Componentes UI compartidos
 └── tooling/
-    └── typescript/       # Configuracion TypeScript base
+    └── typescript/             # Configuracion TypeScript base
 ```
 
 ## Prerequisitos
