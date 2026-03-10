@@ -1,6 +1,2 @@
-// ============================================================
-// DEPRECATED -- This file is a duplicate.
-// The canonical schema lives at: packages/db/prisma/schema.prisma
-// This file should be deleted. Run:
-//   git rm prisma/schema.prisma
-// ============================================================
+// DELETED -- Deprecated stub. Canonical schema at packages/db/prisma/schema.prisma
+// Remove via: git rm prisma/schema.prisma
