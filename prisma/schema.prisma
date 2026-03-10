@@ -128,22 +128,22 @@ model Profile {
 
   // Identity
   pronouns    String?
-  ageRange    String?
-  timezone    String?
-  languages   String[]
+  ageRange    String?  // "18-24", "25-34", "35-44", "45-54", "55+"
+  timezone    String?  // IANA timezone e.g. "America/Buenos_Aires"
+  languages   String[] // ["es", "en"]
 
   // Neurodivergent-specific (Phase 2 expanded)
-  neurodivTypes      NeurodivType[]
+  neurodivTypes      NeurodivType[] // Multi-select, no judgement
   selfDiagnosed      Boolean        @default(false)
-  diagnosisOptional  String?
-  comfortTopics      String[]
-  triggerWarnings    String[]
-  communicationStyle String?
-  currentMood        String?
+  diagnosisOptional  String?        // Free text, totally optional
+  comfortTopics      String[]       // Topics they are comfortable discussing
+  triggerWarnings    String[]       // Content they want warned about
+  communicationStyle String?        // How they prefer to communicate
+  currentMood        String?        // Current mood emoji/text
 
   // Hyperfoci
-  hyperfocusHistory String[]
-  currentHyperfoci  String[]
+  hyperfocusHistory String[] // Past interests
+  currentHyperfoci  String[] // Max 3 active
 
   // Onboarding
   onboardingStep      OnboardingStep @default(BASICS)
@@ -166,22 +166,22 @@ model SensoryPreferences {
   colorPalette        ContrastMode       @default(DEFAULT)
   animationTolerance  AnimationTolerance @default(MINIMAL)
   informationDensity  InfoDensity        @default(COMFORTABLE)
-  transitionSpeed     String             @default("normal")
-  fontScale           Float              @default(1.0)
+  transitionSpeed     String             @default("normal")  // instant, fast, normal, slow
+  fontScale           Float              @default(1.0)        // 0.8 to 1.5
   reducedMotion       Boolean            @default(true)
 
   // Reading
   bionicReadingEnabled Boolean @default(false)
   dyslexicFontEnabled  Boolean @default(false)
-  lineSpacing          String  @default("normal")
+  lineSpacing          String  @default("normal") // tight, normal, relaxed, double
 
   // Notifications
-  notificationIntensity String  @default("gentle")
+  notificationIntensity String  @default("gentle") // silent, gentle, moderate, full
   soundEnabled          Boolean @default(false)
   hapticEnabled         Boolean @default(true)
 
-  // Preset name
-  activePreset String?
+  // Preset name (for quick switching)
+  activePreset String? // "calm", "focus", "high-energy", "minimal", or null for custom
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -197,11 +197,15 @@ model SocialBattery {
   user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   level  BatteryLevel @default(GREEN)
 
+  // Manual override
   manualOverride    Boolean @default(false)
+
+  // Auto-management
   autoDecayEnabled  Boolean @default(true)
   decayRateMinutes  Int     @default(120)
   rechargeReminders Boolean @default(true)
 
+  // Schedule
   autoLurkerStart String?
   autoLurkerEnd   String?
 
@@ -237,19 +241,23 @@ model Post {
   authorId String
   author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
+  // Content
   title   String?
   content String   @db.Text
   toneTag ToneTag
 
-  hyperfoci    String[]
+  // Metadata
+  hyperfoci    String[]   // Tags de hiperfoco asociados al post
   wordCount    Int        @default(0)
-  isInfoDump   Boolean    @default(false)
-  tldrSummary  String?    @db.Text
+  isInfoDump   Boolean    @default(false) // Auto-detectado si wordCount > 300
+  tldrSummary  String?    @db.Text // Cache del resumen IA
   visibility   Visibility @default(PUBLIC)
 
+  // Status
   published Boolean @default(true)
   pinned    Boolean @default(false)
 
+  // Relations
   comments  Comment[]
   reactions Reaction[]
   bookmarks Bookmark[]
@@ -277,6 +285,7 @@ model Comment {
   content String  @db.Text
   toneTag ToneTag?
 
+  // Nested comments (reply to another comment)
   parentId String?
   parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
   replies  Comment[] @relation("CommentReplies")
@@ -303,7 +312,7 @@ model Reaction {
 
   createdAt DateTime @default(now())
 
-  @@unique([postId, userId, type])
+  @@unique([postId, userId, type]) // Un usuario = una reaccion de cada tipo por post
   @@index([postId])
   @@index([userId])
 }
@@ -319,9 +328,9 @@ model Bookmark {
   postId String
   post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
 
-  folder    String?
+  folder    String?  // Carpeta de bookmark personalizada
   createdAt DateTime @default(now())
 
-  @@unique([userId, postId])
+  @@unique([userId, postId]) // No duplicar bookmarks
   @@index([userId, createdAt])
 }
