@@ -5,6 +5,8 @@ import type {
   ContrastModeType,
   OnboardingStepType,
   SensoryPreset,
+  ReactionTypeValue,
+  VisibilityType,
 } from './types'
 
 // ============================================================
@@ -275,8 +277,8 @@ export const APP_CONFIG = {
   maxHyperfocusHistory: 20,
   defaultBatteryLevel: 'GREEN' as const,
   batteryDecayDefaultMinutes: 120,
-  batteryDelayYellowMs: 5 * 60 * 1000, // 5 min delay for YELLOW
-  version: '0.2.0',
+  batteryDelayYellowMs: 5 * 60 * 1000,
+  version: '0.3.0',
 } as const
 
 // ============================================================
@@ -285,7 +287,136 @@ export const APP_CONFIG = {
 
 export const BATTERY_MIDDLEWARE_CONFIG = {
   GREEN: { action: 'deliver', delayMs: 0 },
-  YELLOW: { action: 'delay', delayMs: 5 * 60 * 1000 }, // 5 min configurable
-  RED: { action: 'queue', delayMs: null }, // Enqueue in Redis
-  LURKER: { action: 'reject', delayMs: null }, // Silent reject
+  YELLOW: { action: 'delay', delayMs: 5 * 60 * 1000 },
+  RED: { action: 'queue', delayMs: null },
+  LURKER: { action: 'reject', delayMs: null },
+} as const
+
+// ============================================================
+// Reactions (New - Phase 3)
+// ============================================================
+
+export const REACTIONS: Record<ReactionTypeValue, { label: string; emoji: string; description: string; color: string }> = {
+  ME_TOO: {
+    label: 'Yo Tambien',
+    emoji: '\u{1F64B}',
+    description: 'Me identifico con esto',
+    color: '#F59E0B',
+  },
+  BRAIN_EXPLODE: {
+    label: 'Cerebro Explotado',
+    emoji: '\u{1F92F}',
+    description: 'Esto me volo la cabeza',
+    color: '#EF4444',
+  },
+  HYPERFOCUS_ACTIVATED: {
+    label: 'Hiperfoco Activado',
+    emoji: '\u{1F3AF}',
+    description: 'Ahora necesito saber todo sobre esto',
+    color: '#8B5CF6',
+  },
+  GENTLE_HUG: {
+    label: 'Abrazo Gentil',
+    emoji: '\u{1FAC2}',
+    description: 'Te mando un abrazo virtual',
+    color: '#EC4899',
+  },
+  INFO_GOLD: {
+    label: 'Oro Informativo',
+    emoji: '\u{1F4A1}',
+    description: 'Informacion super valiosa',
+    color: '#10B981',
+  },
+}
+
+// ============================================================
+// Visibility Options (New - Phase 3)
+// ============================================================
+
+export const VISIBILITY_OPTIONS: Record<VisibilityType, { label: string; description: string; emoji: string }> = {
+  PUBLIC: {
+    label: 'Publico',
+    description: 'Visible para toda la comunidad',
+    emoji: '\u{1F30D}',
+  },
+  FOLLOWERS: {
+    label: 'Seguidores',
+    description: 'Solo tus seguidores pueden ver',
+    emoji: '\u{1F465}',
+  },
+  HYPERFOCUS_GROUP: {
+    label: 'Grupo de Hiperfoco',
+    description: 'Solo personas con hiperfocos similares',
+    emoji: '\u{1F3AF}',
+  },
+  PRIVATE: {
+    label: 'Privado',
+    description: 'Solo tu puedes ver',
+    emoji: '\u{1F512}',
+  },
+}
+
+// ============================================================
+// Feed Config (New - Phase 3)
+// ============================================================
+
+export const FEED_CONFIG = {
+  postsPerPage: 15,
+  maxPostLength: 5000,
+  maxMediaUrls: 4,
+  maxTagsPerPost: 5,
+  
+  // Dopamine curation weights
+  curation: {
+    hyperfocusMatchWeight: 3.0,
+    freshnessWeight: 2.0,
+    tonePreferenceWeight: 1.5,
+    sameTopicPenalty: -1.5,
+    sameAuthorPenalty: -2.0,
+    serendipityFactor: 0.10,
+  },
+  
+  // Freshness decay
+  freshnessHalfLifeHours: 24,
+  freshnessMaxDays: 7,
+} as const
+
+// ============================================================
+// Reading Config (New - Phase 3)
+// ============================================================
+
+export const READING_CONFIG = {
+  averageWPM: 200,
+  bionicBoldRatio: 0.4,
+  longPostThreshold: 300,
+  tldrMaxLength: 280,
+  tldrCacheDurationHours: 168,
+} as const
+
+// ============================================================
+// Anti-Rabbit Hole Config (New - Phase 3)
+// ============================================================
+
+export const ANTI_RABBIT_HOLE = {
+  enabled: true,
+  sectionTimerMinutes: 30,
+  gentleNudgeAfterPosts: 20,
+  breakSuggestionMinutes: 45,
+  neverGuilty: true,
+  
+  nudgeMessages: [
+    'Oye, llevas un rato aca. Todo bien? Quizas es buen momento para estirarte.',
+    'Tu cerebro hizo un gran trabajo hoy. Que tal un descanso?',
+    'Recordatorio amistoso: el mundo exterior tambien existe. Pero no hay prisa.',
+    'Llevas {minutes} minutos. Nada de malo, solo queria que supieras.',
+    'Pausa sugerida! Tu bateria social te lo agradecera.',
+  ],
+  
+  breakActivities: [
+    { emoji: '\u{1F4A7}', label: 'Tomar agua', durationMinutes: 2 },
+    { emoji: '\u{1F6B6}', label: 'Caminar un poco', durationMinutes: 5 },
+    { emoji: '\u{1F9D8}', label: 'Respirar profundo', durationMinutes: 3 },
+    { emoji: '\u{1F3B5}', label: 'Escuchar una cancion', durationMinutes: 4 },
+    { emoji: '\u{1F431}', label: 'Acariciar a tu mascota', durationMinutes: 5 },
+  ],
 } as const
