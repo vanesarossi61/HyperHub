@@ -1,6 +1,9 @@
-// Re-export all shared types for app-level use
-// This file bridges @hyperhub/shared types into the app's type system
+// ============================================================
+// HyperHub App Types -- Re-exports from shared package
+// Plus any app-specific types not in the shared package
+// ============================================================
 
+// Re-export everything from shared
 export type {
   // Enums
   BatteryLevelType,
@@ -17,8 +20,12 @@ export type {
   UserPublic,
   ProfilePublic,
   SocialBatteryPublic,
+
+  // Sensory
   SensoryPreferencesConfig,
   SensoryPreset,
+
+  // Battery
   BatteryHistoryEntry,
 
   // Onboarding
@@ -27,21 +34,26 @@ export type {
   OnboardingSensoryData,
   OnboardingBatteryData,
 
-  // Posts & Feed (Phase 3)
+  // Posts (Phase 3)
   PostPublic,
-  PostAuthor,
-  TagPublic,
-  ReactionPublic,
-  BookmarkFolderPublic,
-  FeedFilters,
-  FeedPage,
-  DopamineCurationFactors,
-  AntiRabbitHoleConfig,
-  ReadingConfig,
+  PostDetail,
+  ReactionCount,
+  CommentPublic,
+  BookmarkPublic,
+
+  // Post Requests (Phase 3)
   CreatePostRequest,
   UpdatePostRequest,
+  CreateCommentRequest,
   ToggleReactionRequest,
   ToggleBookmarkRequest,
+
+  // Feed (Phase 3)
+  FeedFilters,
+  FeedSortOption,
+  FeedQuery,
+  FeedResponse,
+  TldrResponse,
 
   // API
   ApiResponse,
