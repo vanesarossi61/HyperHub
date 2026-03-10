@@ -1,218 +1,278 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
-import type { ToneTagType, VisibilityType, CreatePostRequest } from '@hyperhub/shared'
-import { FEED_CONFIG, VISIBILITY_OPTIONS, READING_CONFIG } from '@hyperhub/shared'
+import { useState, useCallback } from 'react'
+import { POST_LIMITS, TONE_TAGS } from '@hyperhub/shared'
+import type { ToneTagType, CreatePostRequest } from '@hyperhub/shared'
 import { ToneTagSelector } from './ToneTagBadge'
 
+// ============================================================
+// PostComposer -- Create a new post with tone tag requirement
+// ============================================================
+
 interface PostComposerProps {
-  onSubmit: (post: CreatePostRequest) => Promise<void>
-  isSubmitting?: boolean
+  onSubmit: (data: CreatePostRequest) => Promise<any>
+  userHyperfoci?: string[]
+  isCompact?: boolean
 }
 
-export function PostComposer({ onSubmit, isSubmitting = false }: PostComposerProps) {
+export function PostComposer({
+  onSubmit,
+  userHyperfoci = [],
+  isCompact = false,
+}: PostComposerProps) {
+  const [isOpen, setIsOpen] = useState(!isCompact)
+  const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [toneTag, setToneTag] = useState<ToneTagType | null>(null)
-  const [visibility, setVisibility] = useState<VisibilityType>('PUBLIC')
-  const [isAnonymous, setIsAnonymous] = useState(false)
-  const [tags, setTags] = useState<string[]>([])
-  const [tagInput, setTagInput] = useState('')
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [hyperfoci, setHyperfoci] = useState<string[]>([])
+  const [newHyperfocus, setNewHyperfocus] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0
-  const readingTime = Math.ceil((wordCount / READING_CONFIG.averageWPM) * 60)
-  const isLongPost = wordCount >= READING_CONFIG.longPostThreshold
-  const charsRemaining = FEED_CONFIG.maxPostLength - content.length
+  const isInfoDump = wordCount >= POST_LIMITS.infoDumpThreshold
+  const canSubmit = content.trim() && toneTag && !isSubmitting
 
-  const handleAddTag = useCallback(() => {
-    const normalized = tagInput.toLowerCase().trim().replace(/^#/, '')
-    if (normalized && !tags.includes(normalized) && tags.length < FEED_CONFIG.maxTagsPerPost) {
-      setTags([...tags, normalized])
-      setTagInput('')
+  const handleAddHyperfocus = useCallback(() => {
+    const tag = newHyperfocus.trim().toLowerCase()
+    if (tag && !hyperfoci.includes(tag) && hyperfoci.length < POST_LIMITS.maxHyperfociPerPost) {
+      setHyperfoci((prev) => [...prev, tag])
+      setNewHyperfocus('')
     }
-  }, [tagInput, tags])
+  }, [newHyperfocus, hyperfoci])
 
-  const handleRemoveTag = (tag: string) => {
-    setTags(tags.filter((t) => t !== tag))
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault()
-      handleAddTag()
-    }
-  }
+  const handleRemoveHyperfocus = useCallback((tag: string) => {
+    setHyperfoci((prev) => prev.filter((t) => t !== tag))
+  }, [])
 
   const handleSubmit = async () => {
-    setError(null)
+    if (!canSubmit || !toneTag) return
 
-    if (!content.trim()) {
-      setError('Escribe algo antes de publicar')
-      return
-    }
-    if (!toneTag) {
-      setError('Elige como te sientes con este post (etiqueta de tono)')
-      return
-    }
+    setIsSubmitting(true)
+    setError(null)
 
     try {
       await onSubmit({
+        title: title.trim() || undefined,
         content: content.trim(),
         toneTag,
-        visibility,
-        isAnonymous,
-        tags: tags.length > 0 ? tags : undefined,
+        hyperfoci: hyperfoci.length > 0 ? hyperfoci : undefined,
       })
 
       // Reset form
+      setTitle('')
       setContent('')
       setToneTag(null)
-      setTags([])
-      setTagInput('')
-      setIsAnonymous(false)
-      setVisibility('PUBLIC')
-      setIsExpanded(false)
-      setError(null)
-    } catch (err: any) {
-      setError(err.message || 'Error al publicar')
+      setHyperfoci([])
+      if (isCompact) setIsOpen(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al publicar')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
-  return (
-    <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
-      {/* Textarea */}
-      <div className="p-4">
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          onFocus={() => setIsExpanded(true)}
-          placeholder="Que tienes en mente? Comparte un hiperfoco, desahogate, o pregunta algo..."
-          className="w-full min-h-[80px] resize-none bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none text-sm leading-relaxed"
-          maxLength={FEED_CONFIG.maxPostLength}
-          rows={isExpanded ? 4 : 2}
-        />
+  // Compact mode: Show just a prompt bar
+  if (isCompact && !isOpen) {
+    return (
+      <button
+        onClick={() => setIsOpen(true)}
+        className="
+          w-full p-4 rounded-2xl border border-gray-200 bg-white
+          text-left text-gray-400 hover:border-gray-300
+          hover:shadow-sm transition-all
+        "
+      >
+        Que estas pensando? Compartilo con la comunidad...
+      </button>
+    )
+  }
 
-        {/* Word count & reading time */}
-        {content.length > 0 && (
-          <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
-            <span>{wordCount} palabras</span>
-            {wordCount > 0 && <span>~{readingTime}s lectura</span>}
-            {isLongPost && (
-              <span className="text-amber-500">
-                Post largo - se generara TL;DR
-              </span>
-            )}
-            <span className={charsRemaining < 500 ? 'text-red-400' : ''}>
-              {charsRemaining} caracteres restantes
-            </span>
-          </div>
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-gray-700">Nuevo Post</h3>
+        {isCompact && (
+          <button
+            onClick={() => setIsOpen(false)}
+            className="text-gray-400 hover:text-gray-600 text-sm"
+          >
+            Cancelar
+          </button>
         )}
       </div>
 
-      {/* Expanded options */}
-      {isExpanded && (
-        <div className="border-t border-gray-100 dark:border-gray-800 p-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
-          {/* Tone Tag - OBLIGATORIO */}
-          <div>
-            <label className="text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-2 block">
-              Como te sientes con este post? *
-            </label>
-            <ToneTagSelector
-              selected={toneTag}
-              onSelect={setToneTag}
-              size="sm"
-            />
-            {!toneTag && content.length > 0 && (
-              <p className="text-xs text-amber-500 mt-1">
-                Elegir un tono ayuda a que otros sepan como leer tu post
-              </p>
-            )}
-          </div>
+      <div className="px-4 pb-4 space-y-4">
+        {/* Tone Tag Selector (required!) */}
+        <ToneTagSelector
+          selected={toneTag}
+          onSelect={setToneTag}
+          required
+        />
 
-          {/* Tags */}
-          <div>
-            <label className="text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-2 block">
-              Tags (max {FEED_CONFIG.maxTagsPerPost})
-            </label>
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                >
-                  #{tag}
-                  <button
-                    onClick={() => handleRemoveTag(tag)}
-                    className="hover:text-red-500 transition-colors"
-                  >
-                    x
-                  </button>
-                </span>
-              ))}
-            </div>
-            {tags.length < FEED_CONFIG.maxTagsPerPost && (
-              <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onBlur={handleAddTag}
-                placeholder="Agrega un tag y presiona Enter..."
-                className="w-full text-sm px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-              />
-            )}
-          </div>
-
-          {/* Bottom row: visibility, anonymous, submit */}
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* Visibility */}
-            <select
-              value={visibility}
-              onChange={(e) => setVisibility(e.target.value as VisibilityType)}
-              className="text-sm px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-            >
-              {(Object.keys(VISIBILITY_OPTIONS) as VisibilityType[]).map((key) => (
-                <option key={key} value={key}>
-                  {VISIBILITY_OPTIONS[key].emoji} {VISIBILITY_OPTIONS[key].label}
-                </option>
-              ))}
-            </select>
-
-            {/* Anonymous toggle */}
-            <label className="inline-flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isAnonymous}
-                onChange={(e) => setIsAnonymous(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="relative w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-600 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all" />
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {'\u{1F47B}'} Anonimo
-              </span>
-            </label>
-
-            {/* Submit */}
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting || !content.trim()}
-              className="ml-auto px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isSubmitting ? 'Publicando...' : 'Publicar'}
-            </button>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <p className="text-sm text-red-500 animate-in fade-in duration-200">
-              {error}
+        {/* Title (optional) */}
+        <div>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Titulo (opcional)"
+            maxLength={POST_LIMITS.maxTitleLength}
+            className="
+              w-full px-3 py-2 rounded-lg border border-gray-200
+              text-sm placeholder-gray-400
+              focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300
+            "
+          />
+          {title.length > POST_LIMITS.maxTitleLength * 0.8 && (
+            <p className="text-xs text-gray-400 mt-1 text-right">
+              {title.length}/{POST_LIMITS.maxTitleLength}
             </p>
           )}
         </div>
-      )}
+
+        {/* Content */}
+        <div>
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder={
+              toneTag
+                ? `${TONE_TAGS[toneTag]?.emoji} ${TONE_TAGS[toneTag]?.description}...`
+                : 'Escribi tu post... (primero elegi la etiqueta de tono arriba)'
+            }
+            maxLength={POST_LIMITS.maxContentLength}
+            rows={6}
+            className="
+              w-full px-3 py-2 rounded-lg border border-gray-200
+              text-sm placeholder-gray-400 resize-y min-h-[120px]
+              focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300
+            "
+          />
+
+          {/* Word count & info dump detector */}
+          <div className="flex items-center justify-between mt-1">
+            <div className="flex items-center gap-2">
+              {isInfoDump && (
+                <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                  <span aria-hidden="true">\u{1F4DA}</span>
+                  Info Dump detectado! Los lectores podran usar TL;DR
+                </span>
+              )}
+            </div>
+            <span className={`text-xs ${
+              wordCount > POST_LIMITS.infoDumpThreshold * 0.8
+                ? 'text-amber-500'
+                : 'text-gray-400'
+            }`}>
+              {wordCount} palabras
+            </span>
+          </div>
+        </div>
+
+        {/* Hyperfoci tags */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Hiperfocos relacionados
+          </label>
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {hyperfoci.map((tag) => (
+              <span
+                key={tag}
+                className="
+                  inline-flex items-center gap-1 px-2 py-0.5 rounded-full
+                  text-xs bg-indigo-50 text-indigo-700 border border-indigo-100
+                "
+              >
+                # {tag}
+                <button
+                  onClick={() => handleRemoveHyperfocus(tag)}
+                  className="text-indigo-400 hover:text-indigo-600 ml-0.5"
+                  aria-label={`Quitar ${tag}`}
+                >
+                  x
+                </button>
+              </span>
+            ))}
+          </div>
+
+          {hyperfoci.length < POST_LIMITS.maxHyperfociPerPost && (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newHyperfocus}
+                onChange={(e) => setNewHyperfocus(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddHyperfocus())}
+                placeholder="Agregar hiperfoco..."
+                className="
+                  flex-1 px-3 py-1.5 rounded-lg border border-gray-200
+                  text-xs placeholder-gray-400
+                  focus:outline-none focus:ring-2 focus:ring-indigo-200
+                "
+              />
+              <button
+                onClick={handleAddHyperfocus}
+                className="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 text-xs font-medium hover:bg-indigo-100"
+              >
+                + Agregar
+              </button>
+            </div>
+          )}
+
+          {/* Quick add from user's hyperfoci */}
+          {userHyperfoci.length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs text-gray-400 mb-1">Tus hiperfocos:</p>
+              <div className="flex flex-wrap gap-1">
+                {userHyperfoci
+                  .filter((hf) => !hyperfoci.includes(hf.toLowerCase()))
+                  .map((hf) => (
+                    <button
+                      key={hf}
+                      onClick={() => {
+                        if (hyperfoci.length < POST_LIMITS.maxHyperfociPerPost) {
+                          setHyperfoci((prev) => [...prev, hf.toLowerCase()])
+                        }
+                      }}
+                      className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    >
+                      + {hf}
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Error */}
+        {error && (
+          <p className="text-sm text-red-600 bg-red-50 p-2 rounded-lg">{error}</p>
+        )}
+
+        {/* Submit */}
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-xs text-gray-400">
+            {toneTag
+              ? `Tono: ${TONE_TAGS[toneTag]?.emoji} ${TONE_TAGS[toneTag]?.label}`
+              : 'Falta elegir tono'}
+          </p>
+          <button
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            className={`
+              px-6 py-2 rounded-xl text-sm font-medium
+              transition-all
+              ${canSubmit
+                ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow'
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }
+            `}
+          >
+            {isSubmitting ? 'Publicando...' : 'Publicar'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
