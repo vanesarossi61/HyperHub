@@ -1,31 +1,11 @@
-/**
- * Redis connection helper.
- * Prepared for caching, queues, and real-time features.
- *
- * Install ioredis when ready:
- *   pnpm add ioredis --filter @hyperhub/web
- *
- * Then uncomment and use the client below.
- */
+import type Redis from 'ioredis'
 
-// import Redis from 'ioredis'
-//
-// const globalForRedis = globalThis as unknown as {
-//   redis: Redis | undefined
-// }
-//
-// export const redis =
-//   globalForRedis.redis ??
-//   new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-//     maxRetriesPerRequest: 3,
-//     lazyConnect: true,
-//   })
-//
-// if (process.env.NODE_ENV !== 'production') {
-//   globalForRedis.redis = redis
-// }
+let redis: Redis | null = null
 
-export const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
+if (process.env.REDIS_URL) {
+  // Dynamic import to avoid build errors when ioredis is not installed
+  const IoRedis = require('ioredis')
+  redis = new IoRedis(process.env.REDIS_URL)
+}
 
-// Placeholder until ioredis is installed
-export const redis = null
+export { redis }
