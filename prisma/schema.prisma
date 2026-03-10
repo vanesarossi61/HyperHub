@@ -1,0 +1,327 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Enums
+// ============================================================
+
+enum BatteryLevel {
+  GREEN
+  YELLOW
+  RED
+  LURKER
+}
+
+enum ToneTag {
+  ENTHUSIASM
+  RANT
+  DEBATE
+  INFO_DUMP
+  QUESTION
+  HELP
+}
+
+enum NeurodivType {
+  ADHD_INATTENTIVE
+  ADHD_HYPERACTIVE
+  ADHD_COMBINED
+  AUTISM
+  DYSLEXIA
+  DYSCALCULIA
+  DYSPRAXIA
+  TOURETTE
+  OCD
+  BIPOLAR
+  ANXIETY
+  DEPRESSION
+  SENSORY_PROCESSING
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum AnimationTolerance {
+  NONE
+  MINIMAL
+  MODERATE
+  FULL
+}
+
+enum InfoDensity {
+  COMPACT
+  COMFORTABLE
+  SPACIOUS
+}
+
+enum ContrastMode {
+  DEFAULT
+  HIGH
+  MUTED
+  DARK_FOCUS
+}
+
+enum OnboardingStep {
+  BASICS
+  HYPERFOCI
+  SENSORY
+  BATTERY_TUTORIAL
+  COMPLETED
+}
+
+enum ReactionType {
+  SAME_HERE
+  BRAIN_EXPLODE
+  HYPERFOCUS
+  SPOON_GIFT
+  INFODUMP_THANKS
+  HUG
+  SENSORY_OVERLOAD
+}
+
+enum Visibility {
+  PUBLIC
+  FRIENDS_ONLY
+  PRIVATE
+}
+
+// ============================================================
+// User Model
+// ============================================================
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  username  String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile            Profile?
+  sensoryPreferences SensoryPreferences?
+  socialBattery      SocialBattery?
+  batteryHistory     BatteryHistory[]
+  posts              Post[]
+  comments           Comment[]
+  reactions          Reaction[]
+  bookmarks          Bookmark[]
+
+  @@index([clerkId])
+  @@index([email])
+}
+
+// ============================================================
+// Profile Model (Expanded for Phase 2)
+// ============================================================
+
+model Profile {
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName String?
+  bio         String?
+  avatarUrl   String?
+
+  // Identity
+  pronouns    String?
+  ageRange    String?
+  timezone    String?
+  languages   String[]
+
+  // Neurodivergent-specific (Phase 2 expanded)
+  neurodivTypes      NeurodivType[]
+  selfDiagnosed      Boolean        @default(false)
+  diagnosisOptional  String?
+  comfortTopics      String[]
+  triggerWarnings    String[]
+  communicationStyle String?
+  currentMood        String?
+
+  // Hyperfoci
+  hyperfocusHistory String[]
+  currentHyperfoci  String[]
+
+  // Onboarding
+  onboardingStep      OnboardingStep @default(BASICS)
+  onboardingCompleted Boolean        @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// Sensory Preferences (Expanded for Phase 2)
+// ============================================================
+
+model SensoryPreferences {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Visual
+  colorPalette        ContrastMode       @default(DEFAULT)
+  animationTolerance  AnimationTolerance @default(MINIMAL)
+  informationDensity  InfoDensity        @default(COMFORTABLE)
+  transitionSpeed     String             @default("normal")
+  fontScale           Float              @default(1.0)
+  reducedMotion       Boolean            @default(true)
+
+  // Reading
+  bionicReadingEnabled Boolean @default(false)
+  dyslexicFontEnabled  Boolean @default(false)
+  lineSpacing          String  @default("normal")
+
+  // Notifications
+  notificationIntensity String  @default("gentle")
+  soundEnabled          Boolean @default(false)
+  hapticEnabled         Boolean @default(true)
+
+  // Preset name
+  activePreset String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// Social Battery (Expanded for Phase 2)
+// ============================================================
+
+model SocialBattery {
+  id     String       @id @default(cuid())
+  userId String       @unique
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level  BatteryLevel @default(GREEN)
+
+  manualOverride    Boolean @default(false)
+  autoDecayEnabled  Boolean @default(true)
+  decayRateMinutes  Int     @default(120)
+  rechargeReminders Boolean @default(true)
+
+  autoLurkerStart String?
+  autoLurkerEnd   String?
+
+  lastLevelChange DateTime @default(now())
+  lastActivity    DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// Battery History (Phase 2)
+// ============================================================
+
+model BatteryHistory {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromLevel BatteryLevel
+  toLevel   BatteryLevel
+  reason    String       @default("manual")
+  createdAt DateTime     @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ============================================================
+// Post Model (Phase 3)
+// ============================================================
+
+model Post {
+  id       String @id @default(cuid())
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  title   String?
+  content String   @db.Text
+  toneTag ToneTag
+
+  hyperfoci    String[]
+  wordCount    Int        @default(0)
+  isInfoDump   Boolean    @default(false)
+  tldrSummary  String?    @db.Text
+  visibility   Visibility @default(PUBLIC)
+
+  published Boolean @default(true)
+  pinned    Boolean @default(false)
+
+  comments  Comment[]
+  reactions Reaction[]
+  bookmarks Bookmark[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([authorId])
+  @@index([toneTag])
+  @@index([published, createdAt])
+  @@index([pinned, createdAt])
+}
+
+// ============================================================
+// Comment Model (Phase 3)
+// ============================================================
+
+model Comment {
+  id       String @id @default(cuid())
+  postId   String
+  post     Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  content String  @db.Text
+  toneTag ToneTag?
+
+  parentId String?
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies  Comment[] @relation("CommentReplies")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([postId, createdAt])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+// ============================================================
+// Reaction Model (Phase 3)
+// ============================================================
+
+model Reaction {
+  id     String       @id @default(cuid())
+  postId String
+  post   Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type   ReactionType
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId, type])
+  @@index([postId])
+  @@index([userId])
+}
+
+// ============================================================
+// Bookmark Model (Phase 3)
+// ============================================================
+
+model Bookmark {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  folder    String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@index([userId, createdAt])
+}
