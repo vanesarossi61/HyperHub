@@ -7,10 +7,14 @@ import type {
   ReactionTypeValue,
   SensoryPreset,
   FeedSortOption,
+  ConversationTypeValue,
+  SafeExitReasonType,
+  NotificationPriorityType,
+  MessageStatusType,
 } from './types'
 
 // ============================================================
-// Battery Levels
+// Battery Levels (Phase 1-2)
 // ============================================================
 
 export const BATTERY_LEVELS = {
@@ -56,7 +60,7 @@ export type BatteryLevelKey = keyof typeof BATTERY_LEVELS
 export type DeliveryMode = 'immediate' | 'delayed' | 'queued' | 'rejected'
 
 // ============================================================
-// Tone Tags
+// Tone Tags (Phase 1-2)
 // ============================================================
 
 export const TONE_TAGS = {
@@ -107,7 +111,7 @@ export const TONE_TAGS = {
 export type ToneTagKey = keyof typeof TONE_TAGS
 
 // ============================================================
-// Reaction Types (Phase 3) -- Neurodivergent-friendly
+// Reaction Types (Phase 3)
 // ============================================================
 
 export const REACTION_TYPES: Record<ReactionTypeValue, {
@@ -173,46 +177,29 @@ export const REACTION_TYPES: Record<ReactionTypeValue, {
 // ============================================================
 
 export const FEED_SORT_OPTIONS: { key: FeedSortOption; label: string; description: string }[] = [
-  {
-    key: 'recent',
-    label: 'Mas Recientes',
-    description: 'Posts mas nuevos primero',
-  },
-  {
-    key: 'trending',
-    label: 'Tendencia',
-    description: 'Lo que mas reacciones tiene ahora',
-  },
-  {
-    key: 'hyperfocus_match',
-    label: 'Mis Hiperfocos',
-    description: 'Posts que coinciden con tus intereses actuales',
-  },
-  {
-    key: 'spoon_friendly',
-    label: 'Bajo Esfuerzo',
-    description: 'Posts cortos y faciles de consumir (para dias de baja energia)',
-  },
+  { key: 'recent', label: 'Mas Recientes', description: 'Posts mas nuevos primero' },
+  { key: 'trending', label: 'Tendencia', description: 'Lo que mas reacciones tiene ahora' },
+  { key: 'hyperfocus_match', label: 'Mis Hiperfocos', description: 'Posts que coinciden con tus intereses actuales' },
+  { key: 'spoon_friendly', label: 'Bajo Esfuerzo', description: 'Posts cortos y faciles de consumir' },
 ]
 
 export const POST_LIMITS = {
   maxTitleLength: 150,
   maxContentLength: 10000,
   maxHyperfociPerPost: 5,
-  infoDumpThreshold: 300, // words -- auto-mark as info dump
-  tldrMinWords: 50, // Minimum words to show TL;DR button
-  previewLength: 280, // Characters to show in feed card
+  infoDumpThreshold: 300,
+  tldrMinWords: 50,
+  previewLength: 280,
   maxCommentLength: 2000,
-  maxCommentDepth: 3, // Max nesting level for replies
+  maxCommentDepth: 3,
 } as const
 
 export const FEED_CONFIG = {
   defaultPageSize: 20,
   maxPageSize: 50,
-  infiniteScrollThreshold: 0.8, // Load more when 80% scrolled
-  staleTime: 30 * 1000, // 30 seconds before refetch
-  cacheTime: 5 * 60 * 1000, // 5 minutes cache
-  // Dopamine curation weights
+  infiniteScrollThreshold: 0.8,
+  staleTime: 30 * 1000,
+  cacheTime: 5 * 60 * 1000,
   dopamineWeights: {
     recency: 0.3,
     hyperfocusMatch: 0.35,
@@ -222,16 +209,16 @@ export const FEED_CONFIG = {
 } as const
 
 export const READING_CONFIG = {
-  wordsPerMinute: 200, // Average reading speed
-  bionicBoldRatio: 0.4, // Bold first 40% of each word
-  bionicMinWordLength: 3, // Only apply bionic to words >= 3 chars
+  wordsPerMinute: 200,
+  bionicBoldRatio: 0.4,
+  bionicMinWordLength: 3,
 } as const
 
 export const ANTI_RABBIT_HOLE_CONFIG = {
-  checkIntervalMs: 15 * 60 * 1000, // Check every 15 min
-  softNudgeMinutes: 30, // First nudge at 30 min
-  mediumNudgeMinutes: 60, // Second nudge at 60 min
-  strongNudgeMinutes: 90, // Strong nudge at 90 min
+  checkIntervalMs: 15 * 60 * 1000,
+  softNudgeMinutes: 30,
+  mediumNudgeMinutes: 60,
+  strongNudgeMinutes: 90,
   messages: {
     soft: [
       'Llevas un rato aca. Tomaste agua?',
@@ -252,187 +239,327 @@ export const ANTI_RABBIT_HOLE_CONFIG = {
 } as const
 
 // ============================================================
-// Neurodiv Types
+// Phase 4: Conversation Configuration
 // ============================================================
 
-export const NEURODIV_TYPES: Record<NeurodivTypeValue, { label: string; description: string }> = {
-  ADHD_INATTENTIVE: { label: 'TDAH Inatento', description: 'Dificultad para mantener atencion, distraido/a facilmente' },
-  ADHD_HYPERACTIVE: { label: 'TDAH Hiperactivo', description: 'Inquietud, necesidad de movimiento constante' },
-  ADHD_COMBINED: { label: 'TDAH Combinado', description: 'Combinacion de inatento e hiperactivo' },
-  AUTISM: { label: 'Autismo / TEA', description: 'Espectro autista' },
-  DYSLEXIA: { label: 'Dislexia', description: 'Dificultad con lectura y procesamiento de texto' },
-  DYSCALCULIA: { label: 'Discalculia', description: 'Dificultad con numeros y matematicas' },
-  DYSPRAXIA: { label: 'Dispraxia', description: 'Dificultad con coordinacion motora' },
-  TOURETTE: { label: 'Tourette', description: 'Tics motores o vocales' },
-  OCD: { label: 'TOC', description: 'Pensamientos obsesivos y/o compulsiones' },
-  BIPOLAR: { label: 'Bipolaridad', description: 'Cambios de estado de animo' },
-  ANXIETY: { label: 'Ansiedad', description: 'Ansiedad generalizada o social' },
-  DEPRESSION: { label: 'Depresion', description: 'Depresion clinica' },
-  SENSORY_PROCESSING: { label: 'Procesamiento Sensorial', description: 'Sensibilidad sensorial atipica' },
-  OTHER: { label: 'Otro', description: 'Otra condicion neurodivergente' },
-  PREFER_NOT_TO_SAY: { label: 'Prefiero no decir', description: 'Y eso esta perfecto' },
+export const CONVERSATION_TYPES: Record<ConversationTypeValue, {
+  key: ConversationTypeValue
+  label: string
+  description: string
+  emoji: string
+  maxMembers: number
+  defaultToneTagRequired: boolean
+}> = {
+  DIRECT: {
+    key: 'DIRECT',
+    label: 'Mensaje Directo',
+    description: 'Chat privado 1:1 con otra persona',
+    emoji: '\u{1F4AC}',
+    maxMembers: 2,
+    defaultToneTagRequired: true,
+  },
+  GROUP: {
+    key: 'GROUP',
+    label: 'Grupo',
+    description: 'Chat grupal con hasta 8 personas',
+    emoji: '\u{1F465}',
+    maxMembers: 8,
+    defaultToneTagRequired: true,
+  },
+  SAFE_SPACE: {
+    key: 'SAFE_SPACE',
+    label: 'Espacio Seguro',
+    description: 'Chat moderado con reglas de cuidado extra',
+    emoji: '\u{1F49C}',
+    maxMembers: 8,
+    defaultToneTagRequired: true,
+  },
 }
 
 // ============================================================
-// Sensory Defaults & Presets
+// Phase 4: Message Limits & Configuration
 // ============================================================
 
-export const SENSORY_DEFAULTS = {
-  colorPalette: 'DEFAULT' as ContrastModeType,
-  animationTolerance: 'MINIMAL' as AnimationToleranceType,
-  informationDensity: 'COMFORTABLE' as InfoDensityType,
-  transitionSpeed: 'normal',
-  fontScale: 1.0,
-  reducedMotion: true,
-  bionicReadingEnabled: false,
-  dyslexicFontEnabled: false,
-  lineSpacing: 'normal',
-  notificationIntensity: 'gentle',
-  soundEnabled: false,
-  hapticEnabled: true,
-  activePreset: null as string | null,
+export const MESSAGE_LIMITS = {
+  maxContentLength: 4000,
+  maxMessagesPerMinute: 10, // Rate limit
+  maxConversationsPerUser: 50,
+  maxGroupMembers: 8,
+  maxDirectConversations: 30,
+  messagePreviewLength: 100, // Characters for reply preview
+  typingTimeoutMs: 5000, // Stop showing "typing" after 5s of inactivity
+  editWindowMinutes: 15, // Can edit messages within 15 min
 } as const
+
+export const MESSAGE_STATUS_CONFIG: Record<MessageStatusType, {
+  key: MessageStatusType
+  label: string
+  icon: string
+  color: string
+}> = {
+  QUEUED: {
+    key: 'QUEUED',
+    label: 'En cola',
+    icon: 'clock',
+    color: '#6b7280',
+  },
+  DELIVERED: {
+    key: 'DELIVERED',
+    label: 'Enviado',
+    icon: 'check',
+    color: '#3B82F6',
+  },
+  READ: {
+    key: 'READ',
+    label: 'Leido',
+    icon: 'check-check',
+    color: '#22c55e',
+  },
+  FAILED: {
+    key: 'FAILED',
+    label: 'Error',
+    icon: 'alert-circle',
+    color: '#ef4444',
+  },
+}
+
+// ============================================================
+// Phase 4: Battery-Based Message Delivery
+// ============================================================
+
+export const BATTERY_DELIVERY_CONFIG = {
+  GREEN: {
+    mode: 'immediate' as const,
+    description: 'Mensajes llegan al instante',
+    queueDelay: 0,
+    notificationLevel: 'NORMAL' as NotificationPriorityType,
+  },
+  YELLOW: {
+    mode: 'delayed' as const,
+    description: 'Mensajes llegan con un delay gentil de 5 min',
+    queueDelay: 5 * 60 * 1000, // 5 minutes
+    notificationLevel: 'LOW' as NotificationPriorityType,
+  },
+  RED: {
+    mode: 'queued' as const,
+    description: 'Mensajes se acumulan y llegan cuando suba tu bateria',
+    queueDelay: -1, // Hold until battery changes
+    notificationLevel: 'SILENT' as NotificationPriorityType,
+  },
+  LURKER: {
+    mode: 'rejected' as const,
+    description: 'Modo invisible. Los mensajes se guardan pero no notifican',
+    queueDelay: -1, // Hold indefinitely
+    notificationLevel: 'SILENT' as NotificationPriorityType,
+  },
+} as const
+
+export const MESSAGE_QUEUE_CONFIG = {
+  checkIntervalMs: 30 * 1000, // Check queue every 30s
+  maxQueueSize: 100, // Max queued messages per user
+  queueRetentionHours: 72, // Keep queued messages for 3 days
+  batchDeliverySize: 10, // Deliver max 10 at a time when battery recovers
+  digestSummaryThreshold: 5, // Summarize if > 5 queued messages
+} as const
+
+// ============================================================
+// Phase 4: Safe Exit Configuration
+// ============================================================
+
+export const SAFE_EXIT_REASONS: Record<SafeExitReasonType, {
+  key: SafeExitReasonType
+  label: string
+  emoji: string
+  autoMessage: string
+  description: string
+  suggestedDurationMin: number
+}> = {
+  NEED_BREAK: {
+    key: 'NEED_BREAK',
+    label: 'Necesito una pausa',
+    emoji: '\u{2615}',
+    autoMessage: 'necesita tomar una pausa. Vuelve pronto.',
+    description: 'Un descanso general para recargar',
+    suggestedDurationMin: 15,
+  },
+  SENSORY_OVERLOAD: {
+    key: 'SENSORY_OVERLOAD',
+    label: 'Sobrecarga sensorial',
+    emoji: '\u{26A1}',
+    autoMessage: 'esta experimentando sobrecarga sensorial. Por favor, respeta su espacio.',
+    description: 'Demasiado estimulo, necesito silencio',
+    suggestedDurationMin: 30,
+  },
+  LOW_BATTERY: {
+    key: 'LOW_BATTERY',
+    label: 'Bateria baja',
+    emoji: '\u{1FAAB}',
+    autoMessage: 'tiene la bateria social baja. Los mensajes se guardan para despues.',
+    description: 'Se activo automaticamente por bateria en rojo',
+    suggestedDurationMin: 60,
+  },
+  OVERWHELMED: {
+    key: 'OVERWHELMED',
+    label: 'Me siento abrumado/a',
+    emoji: '\u{1F97A}',
+    autoMessage: 'se siente abrumado/a y necesita un momento. Estara bien.',
+    description: 'Demasiadas cosas a la vez',
+    suggestedDurationMin: 30,
+  },
+  CUSTOM: {
+    key: 'CUSTOM',
+    label: 'Otro motivo',
+    emoji: '\u{1F4AD}',
+    autoMessage: 'necesita un momento. Vuelve cuando este listo/a.',
+    description: 'Escribe tu propio motivo',
+    suggestedDurationMin: 15,
+  },
+}
+
+export const SAFE_EXIT_CONFIG = {
+  maxActiveExits: 1, // Only one active safe exit at a time
+  autoReturnAfterHours: 24, // Auto-return after 24h if not manually returned
+  showReturnNotification: true, // Notify conversation when user returns
+  gracePeriodMinutes: 2, // Don't show exit to others for 2 min (in case of accidental tap)
+  returnMessages: [
+    'Volvi! Gracias por la paciencia.',
+    'Ya estoy de vuelta. Como va todo?',
+    'Regrese! Me siento mejor.',
+    'Hola de nuevo! Necesitaba ese break.',
+  ],
+} as const
+
+// ============================================================
+// Phase 4: Typing Indicator Configuration
+// ============================================================
+
+export const TYPING_CONFIG = {
+  debounceMs: 300, // Wait 300ms after last keystroke before sending event
+  timeoutMs: 5000, // Stop showing after 5s of no typing events
+  maxConcurrentTypers: 3, // Show max 3 "typing" at once, then "varios estan escribiendo"
+  respectBattery: true, // Don't show typing if recipient battery is RED/LURKER
+  messages: {
+    single: (name: string) => `${name} esta escribiendo...`,
+    two: (name1: string, name2: string) => `${name1} y ${name2} estan escribiendo...`,
+    many: (count: number) => `${count} personas estan escribiendo...`,
+  },
+} as const
+
+// ============================================================
+// Phase 4: Socket Configuration
+// ============================================================
+
+export const SOCKET_CONFIG = {
+  reconnectAttempts: 5,
+  reconnectDelay: 1000, // Start with 1s, doubles each attempt
+  reconnectDelayMax: 30000, // Max 30s between attempts
+  pingInterval: 25000, // Ping every 25s
+  pingTimeout: 10000, // Timeout after 10s
+  transports: ['websocket', 'polling'] as const,
+  // Presence
+  presenceUpdateInterval: 60000, // Update presence every 60s
+  offlineThreshold: 90000, // Consider offline after 90s of no ping
+} as const
+
+// ============================================================
+// Phase 4: Notification Configuration
+// ============================================================
+
+export const NOTIFICATION_CONFIG = {
+  // Battery-adaptive notification text
+  batteryMessages: {
+    GREEN: 'Nuevo mensaje',
+    YELLOW: 'Mensaje guardado (lo veras cuando quieras)',
+    RED: 'Mensaje en cola (se entregara cuando tu bateria suba)',
+    LURKER: '', // No notification
+  },
+  // Digest configuration
+  digestTemplate: (count: number) =>
+    `Tenes ${count} mensaje${count !== 1 ? 's' : ''} sin leer. Cuando estes listo/a, estan ahi.`,
+  // Priority overrides
+  urgentKeywords: ['urgente', 'emergencia', 'importante', 'ayuda'],
+  mentionPattern: /@(\w+)/g,
+} as const
+
+// ============================================================
+// Phase 4: Sensory Presets (unchanged from Phase 2)
+// ============================================================
 
 export const SENSORY_PRESETS: SensoryPreset[] = [
   {
     key: 'calm',
     label: 'Calma Total',
-    description: 'Minimo estimulo visual. Ideal para dias de baja energia.',
+    description: 'Minimo estimulo visual. Ideal para dias de sobrecarga.',
     config: {
-      colorPalette: 'MUTED',
       animationTolerance: 'NONE',
       informationDensity: 'SPACIOUS',
-      transitionSpeed: 'slow',
-      fontScale: 1.1,
       reducedMotion: true,
-      soundEnabled: false,
+      colorPalette: 'MUTED',
       notificationIntensity: 'silent',
+      soundEnabled: false,
     },
   },
   {
     key: 'focus',
-    label: 'Modo Enfoque',
-    description: 'Optimizado para hiperfoco. Menos distracciones, mas contenido.',
+    label: 'Modo Foco',
+    description: 'Optimizado para concentracion. Sin distracciones.',
     config: {
-      colorPalette: 'DARK_FOCUS',
       animationTolerance: 'MINIMAL',
       informationDensity: 'COMPACT',
-      transitionSpeed: 'fast',
-      fontScale: 1.0,
       reducedMotion: true,
-      soundEnabled: false,
+      colorPalette: 'DARK_FOCUS',
       notificationIntensity: 'silent',
+      bionicReadingEnabled: true,
     },
   },
   {
     key: 'high-energy',
     label: 'Alta Energia',
-    description: 'Todo activado. Para cuando tu cerebro quiere estimulacion.',
+    description: 'Todos los estimulos! Para cuando tu cerebro quiere fiesta.',
     config: {
-      colorPalette: 'DEFAULT',
       animationTolerance: 'FULL',
       informationDensity: 'COMFORTABLE',
-      transitionSpeed: 'normal',
-      fontScale: 1.0,
       reducedMotion: false,
+      colorPalette: 'DEFAULT',
+      notificationIntensity: 'full',
       soundEnabled: true,
-      hapticEnabled: true,
-      notificationIntensity: 'moderate',
     },
   },
   {
-    key: 'accessible',
-    label: 'Accesibilidad Max',
-    description: 'Alto contraste, fuente grande, lectura bionica. Para leer sin esfuerzo.',
+    key: 'minimal',
+    label: 'Ultra Minimal',
+    description: 'Lo mas simple posible. Solo texto, sin florituras.',
     config: {
-      colorPalette: 'HIGH',
       animationTolerance: 'NONE',
-      informationDensity: 'SPACIOUS',
-      transitionSpeed: 'slow',
-      fontScale: 1.3,
+      informationDensity: 'COMPACT',
       reducedMotion: true,
-      bionicReadingEnabled: true,
-      dyslexicFontEnabled: true,
-      lineSpacing: 'relaxed',
+      colorPalette: 'HIGH',
       notificationIntensity: 'gentle',
+      soundEnabled: false,
+      bionicReadingEnabled: false,
+      dyslexicFontEnabled: false,
     },
   },
 ]
 
-export const COLOR_PALETTES: { key: ContrastModeType; label: string; description: string }[] = [
-  { key: 'DEFAULT', label: 'Calma (Defecto)', description: 'Colores suaves y relajantes' },
-  { key: 'HIGH', label: 'Alto Contraste', description: 'Maximo contraste para legibilidad' },
-  { key: 'MUTED', label: 'Apagado', description: 'Tonos desaturados y suaves' },
-  { key: 'DARK_FOCUS', label: 'Oscuro Enfocado', description: 'Modo oscuro con acentos minimos' },
-]
-
-export const ANIMATION_LEVELS: { key: AnimationToleranceType; label: string; description: string }[] = [
-  { key: 'NONE', label: 'Sin Animaciones', description: 'Completamente estatico' },
-  { key: 'MINIMAL', label: 'Minimo', description: 'Solo transiciones esenciales' },
-  { key: 'MODERATE', label: 'Moderado', description: 'Animaciones sutiles' },
-  { key: 'FULL', label: 'Completo', description: 'Todas las animaciones activas' },
-]
-
-export const DENSITY_LEVELS: { key: InfoDensityType; label: string; description: string }[] = [
-  { key: 'COMPACT', label: 'Compacto', description: 'Mas contenido visible' },
-  { key: 'COMFORTABLE', label: 'Comodo', description: 'Balance entre contenido y espacio' },
-  { key: 'SPACIOUS', label: 'Espacioso', description: 'Mas espacio para respirar' },
-]
-
 // ============================================================
-// Onboarding Config
+// Neurodiv Types Display (unchanged from Phase 2)
 // ============================================================
 
-export const ONBOARDING_STEPS: { key: OnboardingStepType; label: string; description: string; stepNumber: number }[] = [
-  { key: 'BASICS', label: 'Lo Basico', description: 'Username, pronombres, identificacion', stepNumber: 1 },
-  { key: 'HYPERFOCI', label: 'Tus Hiperfocos', description: 'Que te apasiona ahora?', stepNumber: 2 },
-  { key: 'SENSORY', label: 'Perfil Sensorial', description: 'Personaliza tu experiencia visual', stepNumber: 3 },
-  { key: 'BATTERY_TUTORIAL', label: 'Bateria Social', description: 'Aprende a manejar tu energia', stepNumber: 4 },
-]
-
-export const AGE_RANGES = [
-  { key: '13-17', label: '13-17' },
-  { key: '18-24', label: '18-24' },
-  { key: '25-34', label: '25-34' },
-  { key: '35-44', label: '35-44' },
-  { key: '45-54', label: '45-54' },
-  { key: '55+', label: '55+' },
-  { key: 'prefer-not', label: 'Prefiero no decir' },
-]
-
-export const PRONOUNS_OPTIONS = [
-  { key: 'el/him', label: 'El / Him' },
-  { key: 'ella/her', label: 'Ella / Her' },
-  { key: 'elle/they', label: 'Elle / They' },
-  { key: 'any', label: 'Cualquiera' },
-  { key: 'custom', label: 'Personalizado' },
-]
-
-// ============================================================
-// App Config
-// ============================================================
-
-export const APP_CONFIG = {
-  name: 'HyperHub',
-  tagline: 'Tu Espacio Seguro',
-  description: 'Red social disenada para personas con TDAH',
-  maxHyperfoci: 5, // Expanded from 3 in Phase 3
-  maxBioLength: 500,
-  maxDisplayNameLength: 50,
-  maxHyperfocusHistory: 20,
-  defaultBatteryLevel: 'GREEN' as const,
-  batteryDecayDefaultMinutes: 120,
-  batteryDelayYellowMs: 5 * 60 * 1000,
-  version: '0.3.0', // Phase 3
-} as const
-
-// ============================================================
-// Middleware Battery Config
-// ============================================================
-
-export const BATTERY_MIDDLEWARE_CONFIG = {
-  GREEN: { action: 'deliver', delayMs: 0 },
-  YELLOW: { action: 'delay', delayMs: 5 * 60 * 1000 },
-  RED: { action: 'queue', delayMs: null },
-  LURKER: { action: 'reject', delayMs: null },
-} as const
+export const NEURODIV_DISPLAY: Record<NeurodivTypeValue, { label: string; emoji: string }> = {
+  ADHD_INATTENTIVE: { label: 'TDAH Inatento', emoji: '\u{1F4AD}' },
+  ADHD_HYPERACTIVE: { label: 'TDAH Hiperactivo', emoji: '\u{26A1}' },
+  ADHD_COMBINED: { label: 'TDAH Combinado', emoji: '\u{1F300}' },
+  AUTISM: { label: 'Autismo', emoji: '\u{1F9E9}' },
+  DYSLEXIA: { label: 'Dislexia', emoji: '\u{1F524}' },
+  DYSCALCULIA: { label: 'Discalculia', emoji: '\u{1F522}' },
+  DYSPRAXIA: { label: 'Dispraxia', emoji: '\u{270B}' },
+  TOURETTE: { label: 'Tourette', emoji: '\u{1F4A5}' },
+  OCD: { label: 'TOC', emoji: '\u{1F504}' },
+  BIPOLAR: { label: 'Bipolaridad', emoji: '\u{1F311}' },
+  ANXIETY: { label: 'Ansiedad', emoji: '\u{1F4A8}' },
+  DEPRESSION: { label: 'Depresion', emoji: '\u{1F327}' },
+  SENSORY_PROCESSING: { label: 'Procesamiento Sensorial', emoji: '\u{1F50A}' },
+  OTHER: { label: 'Otro', emoji: '\u{2B50}' },
+  PREFER_NOT_TO_SAY: { label: 'Prefiero no decir', emoji: '\u{1F910}' },
+}
