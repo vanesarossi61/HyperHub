@@ -73,6 +73,23 @@ enum OnboardingStep {
   COMPLETED
 }
 
+// Phase 3 Enums
+
+enum ReactionType {
+  ME_TOO
+  BRAIN_EXPLODE
+  HYPERFOCUS_ACTIVATED
+  GENTLE_HUG
+  INFO_GOLD
+}
+
+enum Visibility {
+  PUBLIC
+  FOLLOWERS
+  HYPERFOCUS_GROUP
+  PRIVATE
+}
+
 // ============================================================
 // User Model
 // ============================================================
@@ -90,6 +107,12 @@ model User {
   socialBattery      SocialBattery?
   batteryHistory     BatteryHistory[]
 
+  // Phase 3 relations
+  posts              Post[]
+  reactions          Reaction[]
+  bookmarks          Bookmark[]
+  bookmarkFolders    BookmarkFolder[]
+
   @@index([clerkId])
   @@index([email])
 }
@@ -106,26 +129,22 @@ model Profile {
   bio         String?
   avatarUrl   String?
 
-  // Identity
   pronouns    String?
-  ageRange    String?  // "18-24", "25-34", "35-44", "45-54", "55+"
-  timezone    String?  // IANA timezone e.g. "America/Buenos_Aires"
-  languages   String[] // ["es", "en"]
+  ageRange    String?
+  timezone    String?
+  languages   String[]
 
-  // Neurodivergent-specific (Phase 2 expanded)
-  neurodivTypes      NeurodivType[] // Multi-select, no judgement
+  neurodivTypes      NeurodivType[]
   selfDiagnosed      Boolean        @default(false)
-  diagnosisOptional  String?        // Free text, totally optional
-  comfortTopics      String[]       // Topics they are comfortable discussing
-  triggerWarnings    String[]       // Content they want warned about
-  communicationStyle String?        // How they prefer to communicate
-  currentMood        String?        // Current mood emoji/text
+  diagnosisOptional  String?
+  comfortTopics      String[]
+  triggerWarnings    String[]
+  communicationStyle String?
+  currentMood        String?
 
-  // Hyperfoci
-  hyperfocusHistory String[] // Past interests
-  currentHyperfoci  String[] // Max 3 active
+  hyperfocusHistory String[]
+  currentHyperfoci  String[]
 
-  // Onboarding
   onboardingStep      OnboardingStep @default(BASICS)
   onboardingCompleted Boolean        @default(false)
 
@@ -142,26 +161,22 @@ model SensoryPreferences {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Visual
   colorPalette        ContrastMode       @default(DEFAULT)
   animationTolerance  AnimationTolerance @default(MINIMAL)
   informationDensity  InfoDensity        @default(COMFORTABLE)
-  transitionSpeed     String             @default("normal")  // instant, fast, normal, slow
-  fontScale           Float              @default(1.0)        // 0.8 to 1.5
+  transitionSpeed     String             @default("normal")
+  fontScale           Float              @default(1.0)
   reducedMotion       Boolean            @default(true)
 
-  // Reading
   bionicReadingEnabled Boolean @default(false)
   dyslexicFontEnabled  Boolean @default(false)
-  lineSpacing          String  @default("normal") // tight, normal, relaxed, double
+  lineSpacing          String  @default("normal")
 
-  // Notifications
-  notificationIntensity String  @default("gentle") // silent, gentle, moderate, full
+  notificationIntensity String  @default("gentle")
   soundEnabled          Boolean @default(false)
   hapticEnabled         Boolean @default(true)
 
-  // Preset name (for quick switching)
-  activePreset String? // "calm", "focus", "high-energy", "minimal", or null for custom
+  activePreset String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -177,17 +192,13 @@ model SocialBattery {
   user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   level  BatteryLevel @default(GREEN)
 
-  // Manual override
-  manualOverride    Boolean @default(false) // User manually set level, skip auto-decay
-
-  // Auto-management
+  manualOverride    Boolean @default(false)
   autoDecayEnabled  Boolean @default(true)
-  decayRateMinutes  Int     @default(120) // How fast battery drains during activity
+  decayRateMinutes  Int     @default(120)
   rechargeReminders Boolean @default(true)
 
-  // Schedule
-  autoLurkerStart String? // Time to auto-switch to LURKER (e.g., "22:00")
-  autoLurkerEnd   String? // Time to auto-switch back (e.g., "08:00")
+  autoLurkerStart String?
+  autoLurkerEnd   String?
 
   lastLevelChange DateTime @default(now())
   lastActivity    DateTime @default(now())
@@ -197,7 +208,7 @@ model SocialBattery {
 }
 
 // ============================================================
-// Battery History (New - Phase 2)
+// Battery History (Phase 2)
 // ============================================================
 
 model BatteryHistory {
@@ -206,8 +217,139 @@ model BatteryHistory {
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   fromLevel BatteryLevel
   toLevel   BatteryLevel
-  reason    String       @default("manual") // manual, auto_decay, schedule, api
+  reason    String       @default("manual")
   createdAt DateTime     @default(now())
 
   @@index([userId, createdAt])
+}
+
+// ============================================================
+// Post (New - Phase 3)
+// ============================================================
+
+model Post {
+  id        String   @id @default(cuid())
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  content     String
+  toneTag     ToneTag
+  visibility  Visibility @default(PUBLIC)
+  isAnonymous Boolean    @default(false)
+
+  mediaUrls   String[]
+  audioUrl    String?
+
+  tldrText       String?
+  tldrGeneratedAt DateTime?
+
+  readingTimeSeconds Int @default(0)
+  wordCount          Int @default(0)
+
+  viewCount     Int @default(0)
+  reactionCount Int @default(0)
+  bookmarkCount Int @default(0)
+
+  postTags   PostTag[]
+  reactions  Reaction[]
+  bookmarks  Bookmark[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([authorId, createdAt])
+  @@index([toneTag, createdAt])
+  @@index([visibility, createdAt])
+}
+
+// ============================================================
+// Tag (New - Phase 3)
+// ============================================================
+
+model Tag {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  category   String?
+  usageCount Int      @default(0)
+
+  postTags PostTag[]
+
+  createdAt DateTime @default(now())
+
+  @@index([name])
+  @@index([usageCount])
+}
+
+// ============================================================
+// PostTag Junction (New - Phase 3)
+// ============================================================
+
+model PostTag {
+  id     String @id @default(cuid())
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tagId  String
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, tagId])
+  @@index([tagId])
+}
+
+// ============================================================
+// Reaction (New - Phase 3)
+// ============================================================
+
+model Reaction {
+  id     String       @id @default(cuid())
+  postId String
+  post   Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type   ReactionType
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId, type])
+  @@index([postId])
+  @@index([userId])
+}
+
+// ============================================================
+// Bookmark (New - Phase 3)
+// ============================================================
+
+model Bookmark {
+  id       String  @id @default(cuid())
+  postId   String
+  post     Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folderId String?
+  folder   BookmarkFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([userId, createdAt])
+  @@index([folderId])
+}
+
+// ============================================================
+// BookmarkFolder (New - Phase 3)
+// ============================================================
+
+model BookmarkFolder {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name   String
+  emoji  String?
+
+  bookmarks Bookmark[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId])
 }
