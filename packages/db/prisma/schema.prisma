@@ -73,20 +73,19 @@ enum OnboardingStep {
   COMPLETED
 }
 
-// Phase 3 Enums
-
 enum ReactionType {
-  ME_TOO
+  SAME_HERE
   BRAIN_EXPLODE
-  HYPERFOCUS_ACTIVATED
-  GENTLE_HUG
-  INFO_GOLD
+  HYPERFOCUS
+  SPOON_GIFT
+  INFODUMP_THANKS
+  HUG
+  SENSORY_OVERLOAD
 }
 
 enum Visibility {
   PUBLIC
-  FOLLOWERS
-  HYPERFOCUS_GROUP
+  FRIENDS_ONLY
   PRIVATE
 }
 
@@ -106,12 +105,10 @@ model User {
   sensoryPreferences SensoryPreferences?
   socialBattery      SocialBattery?
   batteryHistory     BatteryHistory[]
-
-  // Phase 3 relations
   posts              Post[]
+  comments           Comment[]
   reactions          Reaction[]
   bookmarks          Bookmark[]
-  bookmarkFolders    BookmarkFolder[]
 
   @@index([clerkId])
   @@index([email])
@@ -129,22 +126,26 @@ model Profile {
   bio         String?
   avatarUrl   String?
 
+  // Identity
   pronouns    String?
-  ageRange    String?
-  timezone    String?
-  languages   String[]
+  ageRange    String?  // "18-24", "25-34", "35-44", "45-54", "55+"
+  timezone    String?  // IANA timezone e.g. "America/Buenos_Aires"
+  languages   String[] // ["es", "en"]
 
-  neurodivTypes      NeurodivType[]
+  // Neurodivergent-specific (Phase 2 expanded)
+  neurodivTypes      NeurodivType[] // Multi-select, no judgement
   selfDiagnosed      Boolean        @default(false)
-  diagnosisOptional  String?
-  comfortTopics      String[]
-  triggerWarnings    String[]
-  communicationStyle String?
-  currentMood        String?
+  diagnosisOptional  String?        // Free text, totally optional
+  comfortTopics      String[]       // Topics they are comfortable discussing
+  triggerWarnings    String[]       // Content they want warned about
+  communicationStyle String?        // How they prefer to communicate
+  currentMood        String?        // Current mood emoji/text
 
-  hyperfocusHistory String[]
-  currentHyperfoci  String[]
+  // Hyperfoci
+  hyperfocusHistory String[] // Past interests
+  currentHyperfoci  String[] // Max 3 active
 
+  // Onboarding
   onboardingStep      OnboardingStep @default(BASICS)
   onboardingCompleted Boolean        @default(false)
 
@@ -161,22 +162,26 @@ model SensoryPreferences {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Visual
   colorPalette        ContrastMode       @default(DEFAULT)
   animationTolerance  AnimationTolerance @default(MINIMAL)
   informationDensity  InfoDensity        @default(COMFORTABLE)
-  transitionSpeed     String             @default("normal")
-  fontScale           Float              @default(1.0)
+  transitionSpeed     String             @default("normal")  // instant, fast, normal, slow
+  fontScale           Float              @default(1.0)        // 0.8 to 1.5
   reducedMotion       Boolean            @default(true)
 
+  // Reading
   bionicReadingEnabled Boolean @default(false)
   dyslexicFontEnabled  Boolean @default(false)
-  lineSpacing          String  @default("normal")
+  lineSpacing          String  @default("normal") // tight, normal, relaxed, double
 
-  notificationIntensity String  @default("gentle")
+  // Notifications
+  notificationIntensity String  @default("gentle") // silent, gentle, moderate, full
   soundEnabled          Boolean @default(false)
   hapticEnabled         Boolean @default(true)
 
-  activePreset String?
+  // Preset name (for quick switching)
+  activePreset String? // "calm", "focus", "high-energy", "minimal", or null for custom
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -192,11 +197,15 @@ model SocialBattery {
   user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   level  BatteryLevel @default(GREEN)
 
+  // Manual override
   manualOverride    Boolean @default(false)
+
+  // Auto-management
   autoDecayEnabled  Boolean @default(true)
   decayRateMinutes  Int     @default(120)
   rechargeReminders Boolean @default(true)
 
+  // Schedule
   autoLurkerStart String?
   autoLurkerEnd   String?
 
@@ -224,79 +233,73 @@ model BatteryHistory {
 }
 
 // ============================================================
-// Post (New - Phase 3)
+// Post Model (Phase 3)
 // ============================================================
 
 model Post {
-  id        String   @id @default(cuid())
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-  content     String
-  toneTag     ToneTag
-  visibility  Visibility @default(PUBLIC)
-  isAnonymous Boolean    @default(false)
+  // Content
+  title   String?
+  content String   @db.Text
+  toneTag ToneTag
 
-  mediaUrls   String[]
-  audioUrl    String?
+  // Metadata
+  hyperfoci    String[]   // Tags de hiperfoco asociados al post
+  wordCount    Int        @default(0)
+  isInfoDump   Boolean    @default(false) // Auto-detectado si wordCount > 300
+  tldrSummary  String?    @db.Text // Cache del resumen IA
+  visibility   Visibility @default(PUBLIC)
 
-  tldrText       String?
-  tldrGeneratedAt DateTime?
+  // Status
+  published Boolean @default(true)
+  pinned    Boolean @default(false)
 
-  readingTimeSeconds Int @default(0)
-  wordCount          Int @default(0)
-
-  viewCount     Int @default(0)
-  reactionCount Int @default(0)
-  bookmarkCount Int @default(0)
-
-  postTags   PostTag[]
-  reactions  Reaction[]
-  bookmarks  Bookmark[]
+  // Relations
+  comments  Comment[]
+  reactions Reaction[]
+  bookmarks Bookmark[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([authorId, createdAt])
-  @@index([toneTag, createdAt])
-  @@index([visibility, createdAt])
+  @@index([authorId])
+  @@index([toneTag])
+  @@index([published, createdAt])
+  @@index([pinned, createdAt])
 }
 
 // ============================================================
-// Tag (New - Phase 3)
+// Comment Model (Phase 3)
 // ============================================================
 
-model Tag {
-  id         String   @id @default(cuid())
-  name       String   @unique
-  category   String?
-  usageCount Int      @default(0)
+model Comment {
+  id       String @id @default(cuid())
+  postId   String
+  post     Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-  postTags PostTag[]
+  content String  @db.Text
+  toneTag ToneTag?
+
+  // Nested comments (reply to another comment)
+  parentId String?
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies  Comment[] @relation("CommentReplies")
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@index([name])
-  @@index([usageCount])
+  @@index([postId, createdAt])
+  @@index([authorId])
+  @@index([parentId])
 }
 
 // ============================================================
-// PostTag Junction (New - Phase 3)
-// ============================================================
-
-model PostTag {
-  id     String @id @default(cuid())
-  postId String
-  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
-  tagId  String
-  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@unique([postId, tagId])
-  @@index([tagId])
-}
-
-// ============================================================
-// Reaction (New - Phase 3)
+// Reaction Model (Phase 3)
 // ============================================================
 
 model Reaction {
@@ -309,47 +312,25 @@ model Reaction {
 
   createdAt DateTime @default(now())
 
-  @@unique([postId, userId, type])
+  @@unique([postId, userId, type]) // Un usuario = una reaccion de cada tipo por post
   @@index([postId])
   @@index([userId])
 }
 
 // ============================================================
-// Bookmark (New - Phase 3)
+// Bookmark Model (Phase 3)
 // ============================================================
 
 model Bookmark {
-  id       String  @id @default(cuid())
-  postId   String
-  post     Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
-  userId   String
-  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  folderId String?
-  folder   BookmarkFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
-
-  createdAt DateTime @default(now())
-
-  @@unique([postId, userId])
-  @@index([userId, createdAt])
-  @@index([folderId])
-}
-
-// ============================================================
-// BookmarkFolder (New - Phase 3)
-// ============================================================
-
-model BookmarkFolder {
   id     String @id @default(cuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name   String
-  emoji  String?
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
 
-  bookmarks Bookmark[]
-
+  folder    String?  // Carpeta de bookmark personalizada
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
-  @@unique([userId, name])
-  @@index([userId])
+  @@unique([userId, postId]) // No duplicar bookmarks
+  @@index([userId, createdAt])
 }
