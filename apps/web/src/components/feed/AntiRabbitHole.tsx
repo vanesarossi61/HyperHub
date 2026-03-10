@@ -1,138 +1,107 @@
 'use client'
 
-import { useState } from 'react'
-import { ANTI_RABBIT_HOLE } from '@hyperhub/shared'
+import { useAntiRabbitHole } from '@/hooks/useAntiRabbitHole'
 
-interface AntiRabbitHoleNudgeProps {
-  message: string
-  minutesElapsed: number
-  onDismiss: () => void
-  onTakeBreak: () => void
+// ============================================================
+// AntiRabbitHole -- Gentle time-awareness nudge component
+// "Llevas un rato aca. Tomaste agua?"
+// ============================================================
+
+interface AntiRabbitHoleProps {
+  enabled?: boolean
 }
 
-export function AntiRabbitHoleNudge({
-  message,
-  minutesElapsed,
-  onDismiss,
-  onTakeBreak,
-}: AntiRabbitHoleNudgeProps) {
-  return (
-    <div className="mx-auto max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-4 shadow-lg">
-        <div className="flex items-start gap-3">
-          <span className="text-2xl flex-shrink-0 mt-0.5" role="img" aria-label="reloj">
-            {'\u23F0'}
-          </span>
-          <div className="flex-1 space-y-2">
-            <p className="text-sm text-amber-900 dark:text-amber-100">
-              {message}
-            </p>
-            <p className="text-xs text-amber-600 dark:text-amber-400">
-              {minutesElapsed} minutos en esta sesion
-            </p>
-            <div className="flex gap-2 pt-1">
-              <button
-                onClick={onTakeBreak}
-                className="text-xs px-3 py-1.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors font-medium"
-              >
-                Tomar un descanso
-              </button>
-              <button
-                onClick={onDismiss}
-                className="text-xs px-3 py-1.5 rounded-full text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors"
-              >
-                Sigo un rato mas
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
+export function AntiRabbitHole({ enabled = true }: AntiRabbitHoleProps) {
+  const {
+    nudgeLevel,
+    minutesActive,
+    currentMessage,
+    isDismissed,
+    dismiss,
+    resetTimer,
+  } = useAntiRabbitHole({ enabled })
 
-// Break suggestion with activity options
-interface BreakSuggestionProps {
-  onDismiss: () => void
-  onActivitySelected: (activity: string, durationMinutes: number) => void
-  onResetSession: () => void
-}
-
-export function BreakSuggestion({
-  onDismiss,
-  onActivitySelected,
-  onResetSession,
-}: BreakSuggestionProps) {
-  const [selectedActivity, setSelectedActivity] = useState<string | null>(null)
-
-  const handleSelect = (label: string, duration: number) => {
-    setSelectedActivity(label)
-    onActivitySelected(label, duration)
-    // Auto-dismiss after selection
-    setTimeout(onDismiss, 2000)
+  // Don't render if no nudge or dismissed
+  if (nudgeLevel === 'none' || isDismissed || !currentMessage) {
+    return null
   }
 
+  const levelStyles = {
+    soft: {
+      bg: 'bg-blue-50 border-blue-200',
+      text: 'text-blue-800',
+      icon: '\u{1F4A7}', // droplet
+      accent: 'text-blue-600',
+    },
+    medium: {
+      bg: 'bg-amber-50 border-amber-200',
+      text: 'text-amber-800',
+      icon: '\u{23F0}', // alarm clock
+      accent: 'text-amber-600',
+    },
+    strong: {
+      bg: 'bg-rose-50 border-rose-200',
+      text: 'text-rose-800',
+      icon: '\u{1F6D1}', // stop sign
+      accent: 'text-rose-600',
+    },
+  }
+
+  const style = levelStyles[nudgeLevel] || levelStyles.soft
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="mx-4 max-w-sm rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-6 shadow-xl animate-in zoom-in-95 duration-300">
-        <div className="text-center space-y-4">
-          <span className="text-4xl block" role="img" aria-label="descanso">
-            {'\u{1F9D8}'}
-          </span>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Momento de pausa?
-          </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Llevas un buen rato. No hay culpa, solo una sugerencia amistosa.
-            Elige una actividad cortita:
+    <div
+      className={`
+        fixed bottom-4 left-1/2 -translate-x-1/2 z-50
+        max-w-md w-full mx-4
+        ${style.bg} border rounded-2xl shadow-lg
+        p-4 animate-slide-up
+      `}
+      role="alert"
+      aria-live="polite"
+    >
+      <div className="flex items-start gap-3">
+        {/* Icon */}
+        <span className="text-2xl flex-shrink-0" aria-hidden="true">
+          {style.icon}
+        </span>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-medium ${style.text}`}>
+            {currentMessage}
           </p>
+          <p className="text-xs text-gray-500 mt-1">
+            Llevas {minutesActive} minutos en el feed
+          </p>
+        </div>
 
-          <div className="grid grid-cols-1 gap-2">
-            {ANTI_RABBIT_HOLE.breakActivities.map((activity) => (
-              <button
-                key={activity.label}
-                onClick={() => handleSelect(activity.label, activity.durationMinutes)}
-                className={`
-                  flex items-center gap-3 p-3 rounded-xl
-                  transition-all duration-200
-                  ${selectedActivity === activity.label
-                    ? 'bg-green-100 dark:bg-green-900/30 ring-2 ring-green-400'
-                    : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }
-                `}
-              >
-                <span className="text-xl">{activity.emoji}</span>
-                <div className="flex-1 text-left">
-                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {activity.label}
-                  </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                    ~{activity.durationMinutes} min
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <div className="flex gap-2 pt-2">
-            <button
-              onClick={() => {
-                onResetSession()
-                onDismiss()
-              }}
-              className="flex-1 text-sm py-2 rounded-xl bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/50 transition-colors font-medium"
-            >
-              Ya descanse, resetear timer
-            </button>
-            <button
-              onClick={onDismiss}
-              className="text-sm py-2 px-4 rounded-xl text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            >
-              Cerrar
-            </button>
-          </div>
+        {/* Actions */}
+        <div className="flex flex-col gap-1 flex-shrink-0">
+          <button
+            onClick={dismiss}
+            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label="Cerrar notificacion"
+          >
+            Entendido
+          </button>
+          <button
+            onClick={resetTimer}
+            className={`text-xs ${style.accent} hover:underline transition-colors`}
+          >
+            Ya volvi!
+          </button>
         </div>
       </div>
+
+      {/* Progress bar for strong nudge */}
+      {nudgeLevel === 'strong' && (
+        <div className="mt-3 pt-2 border-t border-rose-200">
+          <p className="text-xs text-rose-600 text-center">
+            Sugerencia: Cierra la app 10 minutos. Tu yo del futuro te lo va a agradecer.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
