@@ -46,8 +46,15 @@ export type ReactionTypeValue =
 
 export type VisibilityType = 'PUBLIC' | 'FRIENDS_ONLY' | 'PRIVATE'
 
+// Phase 4 enums
+export type ConversationTypeValue = 'DIRECT' | 'GROUP' | 'SAFE_SPACE'
+export type MessageStatusType = 'QUEUED' | 'DELIVERED' | 'READ' | 'FAILED'
+export type ParticipantRoleType = 'OWNER' | 'ADMIN' | 'MEMBER'
+export type SafeExitReasonType = 'NEED_BREAK' | 'SENSORY_OVERLOAD' | 'LOW_BATTERY' | 'OVERWHELMED' | 'CUSTOM'
+export type NotificationPriorityType = 'SILENT' | 'LOW' | 'NORMAL' | 'URGENT'
+
 // ============================================================
-// User & Profile Types
+// User & Profile Types (Phase 1-2)
 // ============================================================
 
 export interface UserPublic {
@@ -84,7 +91,7 @@ export interface SocialBatteryPublic {
 }
 
 // ============================================================
-// Sensory Preferences
+// Sensory Preferences (Phase 2)
 // ============================================================
 
 export interface SensoryPreferencesConfig {
@@ -111,7 +118,7 @@ export interface SensoryPreset {
 }
 
 // ============================================================
-// Battery History
+// Battery History (Phase 2)
 // ============================================================
 
 export interface BatteryHistoryEntry {
@@ -123,7 +130,7 @@ export interface BatteryHistoryEntry {
 }
 
 // ============================================================
-// Onboarding Types
+// Onboarding Types (Phase 2)
 // ============================================================
 
 export interface OnboardingBasicsData {
@@ -135,7 +142,7 @@ export interface OnboardingBasicsData {
 }
 
 export interface OnboardingHyperfociData {
-  currentHyperfoci: string[] // max 3
+  currentHyperfoci: string[]
   hyperfocusHistory: string[]
 }
 
@@ -169,7 +176,7 @@ export interface PostPublic {
   published: boolean
   pinned: boolean
   reactions: ReactionCount[]
-  userReactions: ReactionTypeValue[] // Reactions the current user has given
+  userReactions: ReactionTypeValue[]
   commentCount: number
   isBookmarked: boolean
   createdAt: string
@@ -276,7 +283,267 @@ export interface TldrResponse {
 }
 
 // ============================================================
-// API Response Types
+// Phase 4: Conversation Types
+// ============================================================
+
+export interface ConversationPublic {
+  id: string
+  type: ConversationTypeValue
+  name: string | null
+  description: string | null
+  avatarUrl: string | null
+  maxMembers: number
+  toneTagRequired: boolean
+  slowModeSeconds: number
+  isActive: boolean
+  lastMessageAt: string | null
+  participants: ParticipantPublic[]
+  lastMessage: MessagePublic | null
+  unreadCount: number
+  createdAt: string
+}
+
+export interface ConversationDetail extends ConversationPublic {
+  messages: MessagePublic[]
+  hasMoreMessages: boolean
+  nextCursor: string | null
+}
+
+export interface ParticipantPublic {
+  id: string
+  user: UserPublic
+  role: ParticipantRoleType
+  nickname: string | null
+  muted: boolean
+  pinned: boolean
+  lastReadAt: string | null
+  joinedAt: string
+  isOnline: boolean // Derived from socket connection
+  isTyping: boolean // Derived from socket events
+}
+
+// ============================================================
+// Phase 4: Message Types
+// ============================================================
+
+export interface MessagePublic {
+  id: string
+  conversationId: string
+  sender: UserPublic
+  content: string
+  toneTag: ToneTagType
+  status: MessageStatusType
+  replyTo: MessageReplyPreview | null
+  editedAt: string | null
+  isSystem: boolean
+  reads: MessageReadInfo[]
+  createdAt: string
+}
+
+export interface MessageReplyPreview {
+  id: string
+  sender: { id: string; username: string | null; displayName: string | null }
+  content: string // Truncated to ~100 chars
+  toneTag: ToneTagType
+}
+
+export interface MessageReadInfo {
+  userId: string
+  username: string | null
+  readAt: string
+}
+
+// ============================================================
+// Phase 4: Safe Exit Types
+// ============================================================
+
+export interface SafeExitPublic {
+  id: string
+  userId: string
+  user: UserPublic
+  conversationId: string | null
+  reason: SafeExitReasonType
+  customMessage: string | null
+  autoMessage: string
+  exitedAt: string
+  returnedAt: string | null
+  plannedReturn: string | null
+}
+
+export interface SafeExitStatus {
+  isOnBreak: boolean
+  currentExit: SafeExitPublic | null
+  breakDurationMinutes: number | null
+  plannedReturn: string | null
+}
+
+// ============================================================
+// Phase 4: Notification Preference Types
+// ============================================================
+
+export interface NotificationPreferencePublic {
+  greenBattery: NotificationPriorityType
+  yellowBattery: NotificationPriorityType
+  redBattery: NotificationPriorityType
+  lurkerBattery: NotificationPriorityType
+  quietHoursEnabled: boolean
+  quietHoursStart: string | null
+  quietHoursEnd: string | null
+  digestEnabled: boolean
+  digestIntervalMin: number
+  newMessageEnabled: boolean
+  mentionEnabled: boolean
+  reactionEnabled: boolean
+  safeExitEnabled: boolean
+}
+
+// ============================================================
+// Phase 4: Request Types
+// ============================================================
+
+export interface CreateConversationRequest {
+  type: ConversationTypeValue
+  participantIds: string[] // User IDs to add
+  name?: string // Required for GROUP/SAFE_SPACE
+  description?: string
+  toneTagRequired?: boolean
+  slowModeSeconds?: number
+}
+
+export interface SendMessageRequest {
+  content: string
+  toneTag: ToneTagType
+  replyToId?: string
+}
+
+export interface EditMessageRequest {
+  content: string
+  toneTag?: ToneTagType
+}
+
+export interface UpdateConversationRequest {
+  name?: string
+  description?: string
+  toneTagRequired?: boolean
+  slowModeSeconds?: number
+  contentWarnings?: boolean
+}
+
+export interface AddParticipantRequest {
+  userId: string
+  role?: ParticipantRoleType
+}
+
+export interface UpdateParticipantRequest {
+  role?: ParticipantRoleType
+  nickname?: string
+  muted?: boolean
+  pinned?: boolean
+}
+
+export interface SafeExitRequest {
+  reason: SafeExitReasonType
+  customMessage?: string
+  conversationId?: string // null = exit all
+  plannedReturn?: string // ISO date
+}
+
+export interface ReturnFromBreakRequest {
+  safeExitId: string
+}
+
+export interface UpdateNotificationPrefsRequest {
+  greenBattery?: NotificationPriorityType
+  yellowBattery?: NotificationPriorityType
+  redBattery?: NotificationPriorityType
+  lurkerBattery?: NotificationPriorityType
+  quietHoursEnabled?: boolean
+  quietHoursStart?: string
+  quietHoursEnd?: string
+  digestEnabled?: boolean
+  digestIntervalMin?: number
+  newMessageEnabled?: boolean
+  mentionEnabled?: boolean
+  reactionEnabled?: boolean
+  safeExitEnabled?: boolean
+}
+
+// ============================================================
+// Phase 4: Socket Event Types
+// ============================================================
+
+export interface SocketMessageEvent {
+  type: 'new_message'
+  conversationId: string
+  message: MessagePublic
+}
+
+export interface SocketTypingEvent {
+  type: 'typing_start' | 'typing_stop'
+  conversationId: string
+  userId: string
+  username: string | null
+}
+
+export interface SocketPresenceEvent {
+  type: 'user_online' | 'user_offline'
+  userId: string
+}
+
+export interface SocketReadEvent {
+  type: 'messages_read'
+  conversationId: string
+  userId: string
+  readUpTo: string // Message ID
+}
+
+export interface SocketSafeExitEvent {
+  type: 'safe_exit' | 'return_from_break'
+  conversationId: string | null
+  userId: string
+  autoMessage: string
+}
+
+export interface SocketMessageEditEvent {
+  type: 'message_edited'
+  conversationId: string
+  messageId: string
+  newContent: string
+  newToneTag: ToneTagType
+  editedAt: string
+}
+
+export type SocketEvent =
+  | SocketMessageEvent
+  | SocketTypingEvent
+  | SocketPresenceEvent
+  | SocketReadEvent
+  | SocketSafeExitEvent
+  | SocketMessageEditEvent
+
+// ============================================================
+// Phase 4: Message Queue Types (Battery-based delivery)
+// ============================================================
+
+export interface QueuedMessageInfo {
+  messageId: string
+  conversationId: string
+  senderUsername: string | null
+  toneTag: ToneTagType
+  preview: string // First 50 chars
+  queuedAt: string
+  recipientBattery: BatteryLevelType
+  estimatedDelivery: string | null // When battery allows
+}
+
+export interface MessageQueueStatus {
+  pendingCount: number
+  messages: QueuedMessageInfo[]
+  nextDeliveryCheck: string
+}
+
+// ============================================================
+// API Response Types (shared across all phases)
 // ============================================================
 
 export interface ApiResponse<T> {
