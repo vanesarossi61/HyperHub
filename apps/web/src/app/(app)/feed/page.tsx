@@ -1,18 +1,18 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import type { CreatePostRequest, ApiResponse } from '@hyperhub/shared'
 import { useFeed } from '@/hooks/useFeed'
-import { useAntiRabbitHole } from '@/hooks/useAntiRabbitHole'
 import { PostCard } from '@/components/feed/PostCard'
 import { PostComposer } from '@/components/feed/PostComposer'
 import { FeedFilters } from '@/components/feed/FeedFilters'
-import { AntiRabbitHoleNudge, BreakSuggestion } from '@/components/feed/AntiRabbitHole'
+import { AntiRabbitHole } from '@/components/feed/AntiRabbitHole'
+import { useEffect, useRef, useCallback } from 'react'
+import { FEED_CONFIG } from '@hyperhub/shared'
+
+// ============================================================
+// Feed Page -- Main feed with infinite scroll, filters, composer
+// ============================================================
 
 export default function FeedPage() {
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [bionicReading, setBionicReading] = useState(false)
-
   const {
     posts,
     isLoading,
@@ -20,179 +20,200 @@ export default function FeedPage() {
     error,
     hasMore,
     filters,
-    totalEstimate,
+    sort,
+    setFilters,
+    setSort,
     loadMore,
     refresh,
-    setFilters,
+    createPost,
+    deletePost,
     toggleReaction,
     toggleBookmark,
-  } = useFeed({ initialFilters: { sortBy: 'dopamine' } })
+    generateTldr,
+  } = useFeed({
+    initialSort: 'recent',
+    pageSize: FEED_CONFIG.defaultPageSize,
+  })
 
-  const {
-    minutesElapsed,
-    showNudge,
-    showBreakSuggestion,
-    nudgeMessage,
-    dismissNudge,
-    dismissBreak,
-    trackPostView,
-    resetSession,
-  } = useAntiRabbitHole()
+  // Infinite scroll observer
+  const loadMoreRef = useRef<HTMLDivElement>(null)
 
-  const handleSubmitPost = useCallback(async (postData: CreatePostRequest) => {
-    setIsSubmitting(true)
-    try {
-      const res = await fetch('/api/posts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(postData),
-      })
-      const data: ApiResponse<{ id: string }> = await res.json()
-      if (!data.success) throw new Error(data.error || 'Error al publicar')
-      await refresh()
-    } finally {
-      setIsSubmitting(false)
-    }
-  }, [refresh])
+  const handleObserver = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      const [entry] = entries
+      if (entry.isIntersecting && hasMore && !isLoadingMore) {
+        loadMore()
+      }
+    },
+    [hasMore, isLoadingMore, loadMore]
+  )
 
-  const handleTakeBreak = useCallback(() => {
-    dismissNudge()
-    // Could navigate to a break screen or show break suggestion
-  }, [dismissNudge])
+  useEffect(() => {
+    const node = loadMoreRef.current
+    if (!node) return
+
+    const observer = new IntersectionObserver(handleObserver, {
+      rootMargin: '200px',
+    })
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [handleObserver])
+
+  // TODO: Get from user profile/session
+  const userHyperfoci = ['acuaponia', 'mitologia nordica', 'rust programming']
+  const bionicReadingEnabled = false
+  const reducedMotion = true
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Tu Feed
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            {totalEstimate > 0
-              ? `${totalEstimate} posts para explorar`
-              : 'Comparte algo con la comunidad'
-            }
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* Page header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Feed</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Tu espacio seguro para compartir, aprender y conectar
           </p>
         </div>
 
-        {/* Bionic reading toggle */}
-        <label className="inline-flex items-center gap-2 cursor-pointer">
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            Lectura bionica
-          </span>
-          <input
-            type="checkbox"
-            checked={bionicReading}
-            onChange={(e) => setBionicReading(e.target.checked)}
-            className="sr-only peer"
-          />
-          <div className="relative w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-600 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all" />
-        </label>
-      </div>
+        <div className="flex gap-6">
+          {/* Sidebar: Filters */}
+          <aside className="hidden lg:block w-72 flex-shrink-0">
+            <div className="sticky top-6 space-y-4">
+              <FeedFilters
+                filters={filters}
+                sort={sort}
+                onFiltersChange={setFilters}
+                onSortChange={setSort}
+                userHyperfoci={userHyperfoci}
+              />
 
-      {/* Post Composer */}
-      <PostComposer onSubmit={handleSubmitPost} isSubmitting={isSubmitting} />
-
-      {/* Filters */}
-      <FeedFilters filters={filters} onFiltersChange={setFilters} />
-
-      {/* Anti-Rabbit Hole Nudge */}
-      {showNudge && (
-        <AntiRabbitHoleNudge
-          message={nudgeMessage}
-          minutesElapsed={minutesElapsed}
-          onDismiss={dismissNudge}
-          onTakeBreak={handleTakeBreak}
-        />
-      )}
-
-      {/* Feed */}
-      {error && (
-        <div className="text-center py-8">
-          <p className="text-red-500 text-sm">{error}</p>
-          <button
-            onClick={refresh}
-            className="mt-2 text-sm text-indigo-500 hover:text-indigo-600"
-          >
-            Intentar de nuevo
-          </button>
-        </div>
-      )}
-
-      {isLoading && posts.length === 0 ? (
-        <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6 animate-pulse"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700" />
-                <div className="space-y-2 flex-1">
-                  <div className="h-3 w-24 bg-gray-200 dark:bg-gray-700 rounded" />
-                  <div className="h-2 w-16 bg-gray-200 dark:bg-gray-700 rounded" />
+              {/* Quick stats */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  Comunidad
+                </h3>
+                <div className="space-y-1 text-sm text-gray-600">
+                  <p>Tus hiperfocos activos: {userHyperfoci.length}</p>
+                  <p>{posts.length} posts visibles</p>
                 </div>
               </div>
-              <div className="space-y-2">
-                <div className="h-3 w-full bg-gray-200 dark:bg-gray-700 rounded" />
-                <div className="h-3 w-4/5 bg-gray-200 dark:bg-gray-700 rounded" />
-                <div className="h-3 w-3/5 bg-gray-200 dark:bg-gray-700 rounded" />
+            </div>
+          </aside>
+
+          {/* Main feed */}
+          <main className="flex-1 min-w-0 max-w-2xl">
+            {/* Post Composer */}
+            <div className="mb-6">
+              <PostComposer
+                onSubmit={createPost}
+                userHyperfoci={userHyperfoci}
+                isCompact
+              />
+            </div>
+
+            {/* Mobile filters toggle */}
+            <div className="lg:hidden mb-4">
+              <FeedFilters
+                filters={filters}
+                sort={sort}
+                onFiltersChange={setFilters}
+                onSortChange={setSort}
+                userHyperfoci={userHyperfoci}
+                isCollapsed
+              />
+            </div>
+
+            {/* Error state */}
+            {error && (
+              <div className="mb-4 p-4 rounded-2xl bg-red-50 border border-red-200 text-sm text-red-700">
+                <p>{error}</p>
+                <button
+                  onClick={refresh}
+                  className="mt-2 text-red-600 underline text-xs"
+                >
+                  Intentar de nuevo
+                </button>
               </div>
-            </div>
-          ))}
-        </div>
-      ) : posts.length === 0 ? (
-        <div className="text-center py-12">
-          <span className="text-4xl block mb-3">\u{1F331}</span>
-          <p className="text-gray-500 dark:text-gray-400">
-            Todavia no hay posts. Se el primero en compartir algo!
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {posts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              onToggleReaction={toggleReaction}
-              onToggleBookmark={toggleBookmark}
-              bionicReadingEnabled={bionicReading}
-              onPostVisible={trackPostView}
-            />
-          ))}
+            )}
 
-          {/* Load more */}
-          {hasMore && (
-            <div className="text-center py-4">
-              <button
-                onClick={loadMore}
-                disabled={isLoadingMore}
-                className="px-6 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
-              >
-                {isLoadingMore ? 'Cargando...' : 'Cargar mas posts'}
-              </button>
-            </div>
-          )}
+            {/* Loading state */}
+            {isLoading && (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="bg-white rounded-2xl border border-gray-200 p-6 animate-pulse"
+                  >
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-full bg-gray-200" />
+                      <div className="space-y-1">
+                        <div className="h-3 w-24 bg-gray-200 rounded" />
+                        <div className="h-2 w-16 bg-gray-100 rounded" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-4 w-3/4 bg-gray-200 rounded" />
+                      <div className="h-3 w-full bg-gray-100 rounded" />
+                      <div className="h-3 w-2/3 bg-gray-100 rounded" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
-          {!hasMore && posts.length > 0 && (
-            <p className="text-center text-sm text-gray-400 py-4">
-              Llegaste al final. Quizas es un buen momento para un descanso \u{2615}
-            </p>
-          )}
+            {/* Posts list */}
+            {!isLoading && (
+              <div className="space-y-4">
+                {posts.length === 0 ? (
+                  <div className="text-center py-16">
+                    <p className="text-4xl mb-3">\u{1F331}</p>
+                    <p className="text-gray-500">
+                      No hay posts todavia. Se el primero en compartir algo!
+                    </p>
+                  </div>
+                ) : (
+                  posts.map((post) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      onToggleReaction={toggleReaction}
+                      onToggleBookmark={toggleBookmark}
+                      onGenerateTldr={async (id) => { await generateTldr(id) }}
+                      onDelete={deletePost}
+                      bionicReadingEnabled={bionicReadingEnabled}
+                      reducedMotion={reducedMotion}
+                    />
+                  ))
+                )}
+
+                {/* Infinite scroll trigger */}
+                <div ref={loadMoreRef} className="h-4" />
+
+                {/* Loading more */}
+                {isLoadingMore && (
+                  <div className="text-center py-4">
+                    <div className="inline-flex items-center gap-2 text-sm text-gray-500">
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                      Cargando mas posts...
+                    </div>
+                  </div>
+                )}
+
+                {/* End of feed */}
+                {!hasMore && posts.length > 0 && (
+                  <div className="text-center py-8 text-gray-400 text-sm">
+                    <p>Llegaste al final del feed. Hora de tomar agua? \u{1F4A7}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </main>
         </div>
-      )}
+      </div>
 
-      {/* Break Suggestion Modal */}
-      {showBreakSuggestion && (
-        <BreakSuggestion
-          onDismiss={dismissBreak}
-          onActivitySelected={(activity, duration) => {
-            console.log(`Break: ${activity} (${duration} min)`)
-          }}
-          onResetSession={resetSession}
-        />
-      )}
+      {/* Anti Rabbit Hole nudges */}
+      <AntiRabbitHole enabled />
     </div>
   )
 }
