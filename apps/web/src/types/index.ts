@@ -16,6 +16,13 @@ export type {
   ReactionTypeValue,
   VisibilityType,
 
+  // Phase 4 Enums
+  ConversationTypeValue,
+  MessageStatusType,
+  ParticipantRoleType,
+  SafeExitReasonType,
+  NotificationPriorityType,
+
   // User & Profile
   UserPublic,
   ProfilePublic,
@@ -54,6 +61,47 @@ export type {
   FeedQuery,
   FeedResponse,
   TldrResponse,
+
+  // Conversations (Phase 4)
+  ConversationPublic,
+  ConversationDetail,
+  ParticipantPublic,
+
+  // Messages (Phase 4)
+  MessagePublic,
+  MessageReplyPreview,
+  MessageReadInfo,
+
+  // Safe Exit (Phase 4)
+  SafeExitPublic,
+  SafeExitStatus,
+
+  // Notifications (Phase 4)
+  NotificationPreferencePublic,
+
+  // Requests (Phase 4)
+  CreateConversationRequest,
+  SendMessageRequest,
+  EditMessageRequest,
+  UpdateConversationRequest,
+  AddParticipantRequest,
+  UpdateParticipantRequest,
+  SafeExitRequest,
+  ReturnFromBreakRequest,
+  UpdateNotificationPrefsRequest,
+
+  // Socket Events (Phase 4)
+  SocketMessageEvent,
+  SocketTypingEvent,
+  SocketPresenceEvent,
+  SocketReadEvent,
+  SocketSafeExitEvent,
+  SocketMessageEditEvent,
+  SocketEvent,
+
+  // Message Queue (Phase 4)
+  QueuedMessageInfo,
+  MessageQueueStatus,
 
   // API
   ApiResponse,
